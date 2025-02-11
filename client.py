@@ -79,6 +79,7 @@ class Client:
         self.player_id = player_id
         self.ip = ip
         self.port = port
+        self.msgQueue = Queue()
         self.resopnse = None
         self.isRunning = True
     
@@ -109,7 +110,8 @@ class Client:
                     if self.player_id == -1:
                         self.isRunning = False
                     game_state = None
-                self.resopnse = game_state
+                #self.resopnse = game_state
+                self.msgQueue.push(game_state)
                 if not self.isRunning:
                     await websocket.send(str(Message(str(self.player_id), "disconnect", {})))
                     return

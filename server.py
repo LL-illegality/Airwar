@@ -225,6 +225,7 @@ class Weapon:
         self.level = 1
         self.maxLevel = 5
         self.shooterRace = shooterRace
+        self.sound = Sounds.shotgun_shoot
         self.isShooting = False
     
     def shoot(self, x, y, times: int = 1) -> list[Projectile] | None:
@@ -237,6 +238,7 @@ class Weapon:
                 bullet.y = y
                 retList.append(bullet)
             self.cooldown = self.fireRate
+            Board.msgQueue.push(Message('server', 'playsound', {"sound": self.sound.value}))
             return retList
         else:
             return None
@@ -298,6 +300,7 @@ class EnergyWeapon(Weapon):
     def __init__(self, shooterRace: Race) -> None:
         super().__init__(EnergyBall(), 2.5 * gametick, shooterRace)
         self.level= 0
+        self.sound = Sounds.unprepare
         self.maxLevel = 0
 
 class Shotgun(Weapon):
@@ -310,6 +313,7 @@ class Shotgun(Weapon):
     }
     def __init__(self, shooterRace: Race) -> None:
         super().__init__(Bullet(), 5, shooterRace)
+        self.sound = Sounds.shotgun_shoot
     
     def shoot(self, x, y) -> list[Projectile] | None:
         projs = super().shoot(x, y, self.level)
@@ -323,6 +327,7 @@ class Shotgun(Weapon):
                     proj.x += spreadList[i]
                 if self.shooterRace == Race.enemy:
                     proj.chooseTarget = True
+                    proj.image = Images.bullet_enemy
         return projs
 
 class LazerGun(Weapon):
@@ -342,6 +347,7 @@ class LazerGun(Weapon):
     }
     def __init__(self, shooterRace: Race) -> None:
         super().__init__(Lazer(), 1.5, shooterRace)
+        self.sound = Sounds.lazer_shoot
     
     def shoot(self, x, y) -> list[Projectile] | None:
         projs = super().shoot(x, y)
@@ -360,9 +366,11 @@ class MissileLauncher(Weapon):
         self.handedness = 1
         self.level = 0
         self.maxLevel = 0
+        self.sound = Sounds.missile_shoot
 
     def shoot(self, x, y) -> list[Projectile] | None:
         if self.isShooting and self.cooldown <= 0:
+            Board.msgQueue.push(Message('server', 'playsound', {"sound": self.sound.value}))
             missileL = type(self.bullet)()
             missileR = type(self.bullet)(handedness = -1)
             missileL.shooterRace = self.shooterRace
@@ -380,6 +388,10 @@ class RocketLauncher(MissileLauncher):
     def __init__(self, shooterRace: Race) -> None:
         super().__init__(shooterRace)
         self.bullet = Rocket()
+        self.sound = Sounds.rocket_shoot
+    
+    def shoot(self, x, y) -> list[Projectile] | None:
+        return super().shoot(x, y)
 
 class Shotgun_slow(Shotgun):
     def __init__(self, shooterRace: Race) -> None:
@@ -492,6 +504,7 @@ class Player(Unit):
         if self.x > SCREENSIZE[0] : self.x = SCREENSIZE[0]
         if self.y > SCREENSIZE[1] : self.y = SCREENSIZE[1]
         for item in self.gottenItem:
+            Board.msgQueue.push(Message("server", 'playsound', {"sound": "itemget"}))
             if item == ItemTypes.missile:
                 self.weapon.addWeapon(MissileLauncher(self.race))
                 self.weapon.removeAll(RocketLauncher)
@@ -558,11 +571,13 @@ class EnemyBuilder:
         return self.enemy
 
 class Board:
-    def __init__(self) -> None:
+    msgQueue: Queue = Queue()
+    def __init__(self, msgQueue: Queue) -> None:
         self.players: list[Player] = []
         self.units: list[Unit] = []
         self.projectiles: list[Projectile] = []
         self.objects: list[list[Player] | list[Unit] | list[Projectile]] = [self.players, self.units, self.projectiles]
+        Board.msgQueue = msgQueue
         self.currId = -1
     
     def increaseId(self) -> None:
@@ -634,6 +649,11 @@ class Board:
                         if item != other and item & other:
                             item.onCollision(other)
     
+    def generateSoundMessage(self, sound: Sounds | str):
+        if type(sound) == Sounds:
+            sound = sound.value
+        return Message('server', 'playsound', {"sound": sound})
+    
     def update(self) -> None:
         for obj in self.objects:
             for item in obj:
@@ -649,6 +669,7 @@ class Board:
                     for i in self.projectiles:
                         i.isAlive = False
                     self.projectiles.remove(item)
+                    self.msgQueue.push(self.generateSoundMessage(Sounds.nuclear_missile_explode))
                     break
                 if hasattr(item, 'weapon') and item.weapon is not None:
                     if item.weapon.isShooting:
@@ -676,6 +697,7 @@ class Board:
                     magabomb.x = item.x
                     magabomb.y = item.y
                     self.addUnit(magabomb, 'projectile')
+                    self.msgQueue.push(self.generateSoundMessage(Sounds.nuclear_missile_shoot))
                 if item.isAlive == False:
                     if hasattr(item, 'inventory'):
                         for itemType in item.inventory:
@@ -684,6 +706,8 @@ class Board:
                             itemUnit.y = item.y
                             self.addUnit(itemUnit, 'unit')
                     obj.remove(item)
+                    if isinstance(item, Unit):
+                        self.msgQueue.push(self.generateSoundMessage(f"explode{str(random.randint(1, 5))}"))
                     del item
         self.checkCollision()
 
@@ -803,13 +827,13 @@ class LevelLoader:
 
 class Game:
     def __init__(self, queue: Queue) -> None:
-        self.board = Board()
         self._currState = GameState.mainMenu
         self.levelLoader = LevelLoader()
         self.levelLoader.loadLevels()
         self.levelLoader.createAttr()
         self.waitTime = 0
         self.msgQueue: Queue = queue
+        self.board = Board(self.msgQueue)
         self.isPaused = False
     
     def setWaitTime(self, time: int) -> None:

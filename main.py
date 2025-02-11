@@ -137,6 +137,7 @@ class ImageLoader:
     
     def draw_(self, *args) -> None:
         #asyncio.run(self.getData())
+        screen.fill((230, 230, 230))
         for surface in self.awaitingSurfaceList:
             rect = surface.get_rect()
             rect.center = (WIDTH/2, HEIGHT/3)
@@ -177,7 +178,12 @@ class ImageLoader:
 
 class SoundLoader:
     def __init__(self) -> None:
-        self.dataList: list = []
+        self.soundData = ''
+    
+    def play(self, *args) -> None:
+        if websocket != None:
+            self.soundData = websocket.resopnse['content']['sound']
+            self.play_once(self.soundData)
 
     def play_once(self, name: str) -> None:
         pygame.mixer.Sound.play(soundMap.sounds[Sounds(name)])
@@ -223,7 +229,8 @@ class ResourcesLoader:
         self.processMappingTable: dict[str, callable | None] = {
             "screen_info": self.imageLoader.draw_,
             "game_state_changed": self.on_gamestate_changed,
-            "setTutorial": self.imageLoader.setTutorial
+            "setTutorial": self.imageLoader.setTutorial,
+            "playsound": self.soundLoader.play,
         }
     
     def process(self, responseMessage: Message) -> None:
@@ -285,7 +292,15 @@ async def on_quit() -> None:
 def mainloop() -> None:
     global waitTime
     def process():
-        resourcesLoader.process(Message(websocket.resopnse['sender'], websocket.resopnse['type'], websocket.resopnse['content']))
+        if websocket != None:
+            while websocket.msgQueue.isEmpty() == False:
+                websocket.resopnse = websocket.msgQueue.pop()
+                if isinstance(websocket.resopnse, Message):
+                    websocket.resopnse = json.loads(str(websocket.resopnse))
+                if websocket.resopnse != None:
+                    if websocket.resopnse['type'] == "playsound":
+                        pass
+                    resourcesLoader.process(Message(websocket.resopnse['sender'], websocket.resopnse['type'], websocket.resopnse['content']))
     while True:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
@@ -300,11 +315,9 @@ def mainloop() -> None:
                     pygame.mixer.Sound.play(soundMap.sounds[Sounds.unprepare])
                 if event.key == pygame.K_z:
                     resourcesLoader.imageLoader.drawTriangle = not resourcesLoader.imageLoader.drawTriangle
-        screen.fill((230, 230, 230))
         if websocket != None:
             if game != None:
                 websocket.update()
-                websocket.requestToResponse()
                 if waitTime == 0:
                     websocket.setTutorialStep()
                 else:
@@ -312,14 +325,7 @@ def mainloop() -> None:
                 if waitTime > 2000000000:
                     if websocket.isScreenEmpty():
                         waitTime = 0
-            if websocket.resopnse != None:
-                if game == None:
-                    process()
-                else:
-                    process()
-                    while websocket.msgQueue.isEmpty() == False:
-                        websocket.requestToResponse()
-                        process()
+        process()
         pygame.display.flip()
         clock.tick(60)
 

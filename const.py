@@ -36,6 +36,7 @@ class Images(Enum):
     player1 = 'player1'
     player2 = "player2"
     bullet1 = "bullet1"
+    bullet_enemy = "bullet_enemy"
     lazer1 = "lazer_level1"
     lazer2 = "lazer_level2"
     lazer3 = "lazer_level3"
@@ -84,6 +85,18 @@ class Sounds(Enum):
     prepare = "prepare"
     unprepare = "unprepare"
     transmission = "transmission"
+    explode1 = "explode1"
+    explode2 = "explode2"
+    explode3 = "explode3"
+    explode4 = "explode4"
+    explode5 = "explode5"
+    missile_shoot = "missile_shoot"
+    rocket_shoot = "rocket_shoot"
+    nuclear_missile_shoot = "nuclear_missile_shoot"
+    nuclear_missile_explode = "nuclear_missile_explode"
+    lazer_shoot = "lazer_shoot"
+    shotgun_shoot = "shotgun_shoot"
+    itemget = "itemget"
 
 class ImageMap:
     def __init__(self) -> None:
