@@ -1,0 +1,136 @@
+{
+    "name": "cpy",
+    "totalFlags": 8,
+    "drops": [
+        1,
+        1,
+        1,
+        2,
+        0,
+        0,
+        0,
+        0,
+        3,
+        4,
+        4,
+        2,
+        5,
+        6,
+        6,
+        6,
+        6
+    ],
+    "flags": [
+        {
+            "unitTypeList": [
+                "en",
+                "en",
+                "test",
+                "test",
+                "test"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "en",
+                "test",
+                "test",
+                "weakling",
+                "weakling"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "test",
+                "test",
+                "weakling",
+                "unit1"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "weakling",
+                "Laser shooter",
+                "enemy2",
+                "enemy2"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "Laser shooter",
+                "test",
+                "unit1",
+                "en",
+                "en"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "enemy2",
+                "enemy2",
+                "weakling",
+                "weakling",
+                "test",
+                "test"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "Laser shooter",
+                "Laser shooter",
+                "test",
+                "test",
+                "weakling",
+                "weakling"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "test",
+                "enemy2",
+                "test",
+                "Laser shooter",
+                "Laser shooter",
+                "en",
+                "test",
+                "test",
+                "test",
+                "unit1",
+                "unit1"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "test",
+                "enemy2",
+                "test",
+                "Laser shooter",
+                "Laser shooter",
+                "en",
+                "enemy2",
+                "enemy2",
+                "enemy2",
+                "unit1",
+                "unit1"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        }
+    ]
+}

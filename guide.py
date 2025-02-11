@@ -6,7 +6,6 @@ import socket
 import random
 
 launchArg: dict = {"mode": "none",
-                   "host": None,
                    "ip": "127.0.0.1",
                    "port": 0}
 
@@ -14,7 +13,7 @@ def singlePlayer() -> None:
     launchArg["mode"] = "single"
     tk.destroy()
 
-def multiPlayer() -> None:
+def multiPlayer() -> bool:
     try:
         s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
         s.connect(('8.8.8.8',80))
@@ -22,17 +21,17 @@ def multiPlayer() -> None:
     finally:
         s.close()
     launchArg["mode"] = "multi"
-    launchArg["host"] = True
     launchArg["ip"] = ip
     launchArg["port"] = random.randint(1000, 9999)
     if ipEntry.get() != "" and portEntry.get() != "":
         launchArg["ip"] = ipEntry.get()
         launchArg["port"] = int(portEntry.get())
-        launchArg["host"] = False
         messagebox.showinfo("Gaming Argument", f"You will join a game at {launchArg['ip']}:{launchArg['port']}")
     else:
-        messagebox.showinfo("Gaming Argument", f"You will host a game with the IP {ip}:{launchArg['port']}")
+        messagebox.showinfo("Gaming Argument", f"Please fill the IP and port to join a game")
+        return False
     tk.destroy()
+    return True
 
 tk = Tk.Tk()
 tk.title("Gameguide")

@@ -1,0 +1,57 @@
+{
+    "name": "cpy",
+    "totalFlags": 5,
+    "drops": [
+        0,
+        1,
+        6,
+        2,
+        4
+    ],
+    "flags": [
+        {
+            "unitTypeList": [
+                "enemy2"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "enemy2",
+                "en"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "Laser shooter",
+                "test",
+                "test"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "Laser shooter",
+                "en",
+                "test"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "Laser shooter",
+                "enemy2",
+                "enemy2",
+                "enemy2",
+                "en"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        }
+    ]
+}

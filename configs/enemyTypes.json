@@ -1,0 +1,122 @@
+{
+    "en": {
+        "health": 100,
+        "image": "en",
+        "weapon": ["Shotgun_normal"],
+        "velocity": {
+            "x": 0,
+            "y": 15
+        },
+        "boundingBox": {
+            "width": 56,
+            "height": 56
+        }
+    },
+    "enemy2": {
+        "health": 50,
+        "image": "enemy2",
+        "weapon": ["EnergyWeapon"],
+        "maxVelocity": 15,
+        "velocityMultiplier": 0.8,
+        "acceleration": {
+            "x": 0,
+            "y": 1
+        },
+        "targetPos": [400, 300],
+        "boundingBox": {
+            "width": 40,
+            "height": 40
+        }
+    },
+    "test": {
+        "health": 100,
+        "image": "ca",
+        "velocity": {
+            "x": 0,
+            "y": 10
+        },
+        "boundingBox": {
+            "width": 56,
+            "height": 56
+        }
+    },
+    "test2": {
+        "health": 100,
+        "image": "rship",
+        "velocity": {
+            "x": 0,
+            "y": 10
+        },
+        "boundingBox": {
+            "width": 56,
+            "height": 56
+        },
+        "inventory": [
+            1,
+            1,
+            1,
+            1,
+            1,
+            1,
+            4
+        ]
+    },
+    "test3": {
+        "health": 100,
+        "image": "enemy2",
+        "velocity": {
+            "x": 0,
+            "y": 10
+        },
+        "boundingBox": {
+            "width": 56,
+            "height": 56
+        },
+        "inventory": [
+            5,
+            5,
+            5
+        ]
+    },
+    "weakling": {
+        "health": 20,
+        "image": "enemy",
+        "weapon": ["MissileLauncher_slow"],
+        "velocity": {
+            "x": 0,
+            "y": 3
+        },
+        "boundingBox": {
+            "width": 40,
+            "height": 40
+        },
+        "velocityMultiplier" : 0.9
+    },
+    "unit1": {
+        "health": 200,
+        "image": "unit1",
+        "weapon": ["MissileLauncher_slow", "Shotgun"],
+        "velocity": {
+            "x": 0,
+            "y": 20
+        },
+        "boundingBox": {
+            "width": 50,
+            "height": 55
+        },
+        "velocityMultiplier" : 0.9
+    },
+    "Laser shooter":{
+        "health": 80,
+        "image": "rship",
+        "weapon": ["LazerGun"],
+        "velocity": {
+            "x": 0,
+            "y": 3
+    },        "boundingBox": {
+        "width": 48,
+        "height": 48
+    },
+    "velocityMultiplier" : 0.9
+    }
+}

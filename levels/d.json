@@ -1,0 +1,195 @@
+{
+    "name": "Level 0",
+    "totalFlags": 10,
+    "drops": [
+        1,
+        1,
+        1,
+        1,
+        2,
+        2,
+        2,
+        4,
+        4,
+        4,
+        3,
+        3,
+        5,
+        5,
+        0,
+        0,
+        0,
+        0,
+        6,
+        6,
+        6,
+        6
+    ],
+    "flags": [
+        {
+            "unitTypeList": [
+                "en",
+                "enemy2"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "en",
+                "en",
+                "en",
+                "Laser shooter",
+                "Laser shooter",
+                "Laser shooter"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "test",
+                "en",
+                "en",
+                "en",
+                "enemy2",
+                "enemy2",
+                "enemy2",
+                "en",
+                "en"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "test",
+                "en",
+                "enemy2",
+                "enemy2",
+                "enemy2",
+                "enemy2",
+                "enemy2",
+                "enemy2",
+                "enemy2",
+                "weakling",
+                "weakling",
+                "weakling",
+                "weakling"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "weakling",
+                "weakling",
+                "weakling",
+                "weakling",
+                "weakling",
+                "weakling",
+                "weakling",
+                "en",
+                "en",
+                "en",
+                "en",
+                "Laser shooter",
+                "Laser shooter",
+                "Laser shooter",
+                "Laser shooter",
+                "Laser shooter",
+                "Laser shooter"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "en",
+                "en",
+                "test",
+                "test",
+                "test"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "en",
+                "test",
+                "test",
+                "weakling",
+                "weakling"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "test",
+                "test",
+                "weakling",
+                "unit1"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "weakling",
+                "Laser shooter",
+                "enemy2",
+                "enemy2"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "weakling",
+                "weakling",
+                "weakling",
+                "weakling",
+                "weakling",
+                "weakling",
+                "weakling",
+                "en",
+                "en",
+                "en",
+                "en",
+                "Laser shooter",
+                "Laser shooter",
+                "Laser shooter",
+                "Laser shooter",
+                "Laser shooter",
+                "Laser shooter"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 0
+        }
+    ]
+}

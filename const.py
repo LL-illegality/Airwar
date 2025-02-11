@@ -1,110 +1,155 @@
 import math
-import sympy as sp
+from enum import Enum
+from typing import Any
+import pygame
+import json
+import os
 
-pi: float = 3.14159
-t = sp.Symbol('t')
-currPos = {'x': sp.Symbol('x'), 'y': sp.Symbol('y')}
+pygame.mixer.init()
+
+pi: float = 3.141592653589793
 SCREENSIZE = (800, 600)
 CAPACITY = 4
-disappearAera = (-50, -50, SCREENSIZE[0]+50, SCREENSIZE[1]+50)
-raceList: list = ["player", "enemy"]
-projectileNameList: list = ['bullet', 'missile']
-gametick: int = 1/30 #1gt = 1/30 sec
+disappearAera = (-100, -100, SCREENSIZE[0]+100, SCREENSIZE[1]+100)
+gametick: int = 30
 
-class Vector:
-    def __init__(self, magnitude, angle) -> None:
-        self.magnitude = magnitude
-        self.angle = angle  # angle in radians
-    
-    def __str__(self) -> str:
-        return f"Vector({self.magnitude}, {self.angle})"
-    
-    def __add__(self, other) -> "Vector":
-        x1 = self.magnitude * math.cos(self.angle)
-        y1 = self.magnitude * math.sin(self.angle)
-        x2 = other.magnitude * math.cos(other.angle)
-        y2 = other.magnitude * math.sin(other.angle)
-        x = x1 + x2
-        y = y1 + y2
-        magnitude = math.sqrt(x**2 + y**2)
-        angle = math.atan2(y, x)
-        return Vector(magnitude, angle)
-    
-    def __sub__(self, other: "Vector") -> "Vector":
-        x1 = self.magnitude * math.cos(self.angle)
-        y1 = self.magnitude * math.sin(self.angle)
-        x2 = other.magnitude * math.cos(other.angle)
-        y2 = other.magnitude * math.sin(other.angle)
-        x = x1 - x2
-        y = y1 - y2
-        magnitude = math.sqrt(x**2 + y**2)
-        angle = math.atan2(y, x)
-        return Vector(magnitude, angle)
+class Keys:
+    a = 97
+    s = 115
+    d = 100
+    w = 119
+    c = 99
+    e = 101
+    space = 32
+    esc = 27
 
-class Quadtree:
-    def __init__(self, boundary: tuple, capacity: int = CAPACITY) -> None:
-        self.boundary: tuple = boundary
-        self.capacity: int = capacity
-        self.objects: list = []
-        self.divided: bool = False
-        self.nw = None
-        self.ne = None
-        self.sw = None
-        self.se = None
+class ItemTypes(Enum):
+    shotgun = 0
+    lazer = 1
+    missile = 2
+    super = 3
+    rocket = 4
+    magabomb = 5
+    medic = 6
 
-    def subdivide(self) -> None:
-        x, y, w, h = self.boundary
-        hw = w / 2
-        hh = h / 2
-        self.nw = Quadtree((x, y, hw, hh), self.capacity)
-        self.ne = Quadtree((x + hw, y, hw, hh), self.capacity)
-        self.sw = Quadtree((x, y + hh, hw, hh), self.capacity)
-        self.se = Quadtree((x + hw, y + hh, hw, hh), self.capacity)
-        self.divided = True
+class Images(Enum):
+    player1 = 'player1'
+    player2 = "player2"
+    bullet1 = "bullet1"
+    lazer1 = "lazer_level1"
+    lazer2 = "lazer_level2"
+    lazer3 = "lazer_level3"
+    lazer4 = "lazer_level4"
+    lazer5 = "lazer_level5"
+    missile = "missile"
+    unit1 = "unit1"
+    rocket = "rocket"
+    energyball = "energyball"
+    magabomb = "magabomb"
+    en = "en"
+    enemy2 = "enemy2"
+    ready = "ready"
+    enemy = "enemy"
+    rship = "rship"
+    item_shotgun = "item_shotgun"
+    item_missile = "item_missile"
+    item_lazer = "item_lazer"
+    item_super = "item_super"
+    item_rocket = "item_rocket"
+    item_maga = "item_maga"
+    item_medic = "item_medic"
+    ca = "ca"
 
-    def insert(self, obj) -> bool:
-        x, y, w, h = obj
-        rect = self._center_to_rect(x, y, w, h)
-        if not self._in_boundary(rect):
-            return False
-        if len(self.objects) < self.capacity:
-            self.objects.append(obj)
-            return True
-        if not self.divided:
-            self.subdivide()
-        return (self.nw.insert(obj) or
-                self.ne.insert(obj) or
-                self.sw.insert(obj) or
-                self.se.insert(obj))
-    
-    def _center_to_rect(self, x, y, w, h) -> tuple:
-        return (x - w / 2, y - h / 2, w, h)
+class Music(Enum):
+    future = "future"
+    future_intro = "future_intro"
+    lostcity = "lostcity"
+    lostcity_intro = "lostcity_intro"
+    pop = "pop"
+    pop_intro = "pop_intro"
+    mainmenu = "mainmenu"
+    tutorial = "tutorial"
 
-    def _in_boundary(self, obj) -> bool:
-        x, y, w, h = self.boundary
-        ox, oy, ow, oh = obj
-        return not (ox + ow < x or ox > x + w or oy + oh < y or oy > y + h)
+class MusicIntro(Enum):
+    future = "future_intro"
+    lostcity = "lostcity_intro"
+    pop = "pop_intro"
 
-    def query(self, range_rect) -> list:
-        results = []
-        if not self._intersects(range_rect):
-            return results
-        for obj in self.objects:
-            if self._intersects_rect(range_rect, obj):
-                results.append(obj)
-        if self.divided:
-            results.extend(self.nw.query(range_rect))
-            results.extend(self.ne.query(range_rect))
-            results.extend(self.sw.query(range_rect))
-            results.extend(self.se.query(range_rect))
-        return results
+class MusicLoop(Enum):
+    future = "future"
+    lostcity = "lostcity"
+    pop = "pop"
 
-    def _intersects(self, range_rect) -> bool:
-        x, y, w, h = self.boundary
-        rx, ry, rw, rh = range_rect
-        return not (rx + rw < x or rx > x + w or ry + rh < y or ry > y + h)
+class Sounds(Enum):
+    prepare = "prepare"
+    unprepare = "unprepare"
+    transmission = "transmission"
 
-    def _intersects_rect(self, rect1, rect2) -> bool:
-        x1, y1, w1, h1 = rect1
-        x2, y2, w2, h2 = rect2
-        return not (x1 + w1 < x2 or x1 > x2 + w2 or y1 + h1 < y2 or y1 > y2 + h2)
+class ImageMap:
+    def __init__(self) -> None:
+        self.images: dict[Images, pygame.Surface] = {}
+        for img in Images:
+            image = pygame.image.load(f".\\images\\{img.value}.png")
+            #rect = image.get_rect()
+            self.images[img] = image
+
+class MusicMap:
+    def __init__(self) -> None:
+        self.music: dict = {}
+        for music in Music:
+            self.music[music] = f".\\music\\{music.value}.wav"
+
+class SoundMap:
+    def __init__(self) -> None:
+        self.sounds: dict = {}
+        for sound in Sounds:
+            self.sounds[sound] = pygame.mixer.Sound(f".\\sounds\\{sound.value}.wav")
+
+class GameMode(Enum):
+    single = 0
+    multiHost = 1
+    multiJoin = 2
+
+class Race(Enum):
+    player = 0
+    enemy = 1
+    neutral = 2
+
+class FlagFinishCondition(Enum):
+    waitForTime = 0
+    killAll = 1
+
+class GameState(Enum):
+    mainMenu = 0
+    loadLevel = 1
+    inGame = 2
+    gameOver = 3
+    pause = 4
+    gameWin = 5
+
+class Configuration:
+    def __init__(self) -> None:
+        cfgFiles = os.listdir(".\\configs")
+        for cfg in cfgFiles:
+            if cfg.endswith(".json"):
+                with open(f".\\configs\\{cfg}", "r") as f:
+                    self.__dict__[cfg[:-5]] = json.load(f)
+
+configuration = Configuration()
+imageMap = ImageMap()
+soundMap = SoundMap()
+musicMap = MusicMap()
+
+introLoopMap = {
+    list(MusicIntro)[i]: list(MusicLoop)[i] for i in range(len(MusicIntro))
+}
+
+itemMap = {
+    ItemTypes.shotgun: Images.item_shotgun,
+    ItemTypes.lazer: Images.item_lazer,
+    ItemTypes.missile: Images.item_missile,
+    ItemTypes.super: Images.item_super,
+    ItemTypes.rocket: Images.item_rocket,
+    ItemTypes.magabomb: Images.item_maga,
+    ItemTypes.medic: Images.item_medic
+}
