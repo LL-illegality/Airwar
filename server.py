@@ -4,7 +4,8 @@ import os
 from const import *
 from data import Vector, Message, Queue
 import random
-import json
+import json 
+import socket
 import math
 
 def createInstanceFromClassname(classname: str, kwargs: dict) -> object:
@@ -161,21 +162,32 @@ class Lazer(Projectile):
         self.velocity = Vector(0, -15)
 
 class Missile(Projectile):
-    def __init__(self, damage = 8, handedness = 1, lifetime = 150) -> None:
+    def __init__(self, damage = 4, handedness = 1, lifetime = 150) -> None:
         super().__init__(damage, lifetime)
         self.image = Images.missile
         self.handedness = handedness
         self.boundingBox = BoundingBox(12, 16)
         self.velocity = Vector(1 * self.handedness, -4)
         self.target: Entity = None
+        self.lockTargetDelay = 0.5 * gametick
+        self.awaitedDelay = 1.5 * gametick
         self.acceleration = Vector(0, -0.5)
     
     def update(self) -> None:
         super().update()
         if self.target is not None:
+            if self.target.isAlive == False:
+                self.target = None
+                return
             self.faceToTarget(self.target, 'acceleration')
+            if self.awaitedDelay == 0:
+                self.velocity *= 0.6
+                self.faceToTarget(self.target, 'velocity')
+                self.awaitedDelay = self.lockTargetDelay
             # self.acceleration.x *= (SCREENSIZE[0] - ((self.target.x ** 2 + self.x ** 2) ** 0.5)) / 500
             # self.acceleration.y *= (SCREENSIZE[1] - ((self.target.y ** 2 + self.y ** 2) ** 0.5)) / 500
+            else:
+                self.awaitedDelay -= 1
 
 class Rocket(Projectile):
     def __init__(self, damage = 10, handedness = 1, lifetime = 150) -> None:
@@ -473,7 +485,7 @@ class Player(Unit):
         self.isReady = False
         self.isThrowingMagabomb = False
         self.boundingBox = BoundingBox(16, 32)
-        self.weapon = WeaponGroup(Shotgun(self.race))
+        self.weapon = WeaponGroup(Shotgun(self.race), MissileLauncher(self.race))
         self.maxVelocity = 15
     
     def update(self) -> None:
@@ -641,13 +653,11 @@ class Board:
     def isAllPlayerPrepared(self) -> bool:
         return all(player.isReady for player in self.players)
 
-    def checkCollision(self) -> None:
-        for obj1 in self.objects:
-            for item in obj1:
-                for obj2 in self.objects:
-                    for other in obj2:
-                        if item != other and item & other:
-                            item.onCollision(other)
+    def checkCollision(self, item: Entity) -> None:
+        for obj in self.objects:
+            for other in obj:
+                if item != other and item & other:
+                    item.onCollision(other)
     
     def generateSoundMessage(self, sound: Sounds | str):
         if type(sound) == Sounds:
@@ -698,6 +708,7 @@ class Board:
                     magabomb.y = item.y
                     self.addUnit(magabomb, 'projectile')
                     self.msgQueue.push(self.generateSoundMessage(Sounds.nuclear_missile_shoot))
+                self.checkCollision(item)
                 if item.isAlive == False:
                     if hasattr(item, 'inventory'):
                         for itemType in item.inventory:
@@ -709,7 +720,6 @@ class Board:
                     if isinstance(item, Unit):
                         self.msgQueue.push(self.generateSoundMessage(f"explode{str(random.randint(1, 5))}"))
                     del item
-        self.checkCollision()
 
 class Flag:
     def __init__(self, unitTypeList: list[str], timeBeforeNext: int, finishCondition: int) -> None:
@@ -885,6 +895,7 @@ class Game:
                 elif level.waitLoaded == False:
                     self.setWaitTime(random.randint(5, 15) * gametick)
                     self.currState = GameState.loadLevel
+                    self.msgQueue.push(Message('server', 'load_level', {'level': level.name}))
                     level.waitLoaded = True
                 else:
                     flag = level.loadFlag()
@@ -1004,7 +1015,9 @@ class WebSocketServer:
 
 async def main() -> None:
     # 创建 WebSocket 服务器实例
-    websocket_server = WebSocketServer("192.168.1.220", 8000)
+    hostname = socket.gethostname()
+    ip = socket.gethostbyname(hostname)
+    websocket_server = WebSocketServer(ip, 8000)
     await websocket_server.start()
 
 if __name__ == "__main__":

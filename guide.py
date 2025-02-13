@@ -3,11 +3,18 @@ import tkinter.ttk as ttk
 from tkinter import messagebox
 import json
 import socket
+from const import *
 import random
 
 launchArg: dict = {"mode": "none",
                    "ip": "127.0.0.1",
                    "port": 0}
+
+launchArg_history: dict = configuration.initializeSettings
+
+def writeSettings() -> None:
+    with open(".\\configs\\initializeSettings.json", "w") as f:
+        json.dump(launchArg, f)
 
 def singlePlayer() -> None:
     launchArg["mode"] = "single"
@@ -26,6 +33,7 @@ def multiPlayer() -> bool:
     if ipEntry.get() != "" and portEntry.get() != "":
         launchArg["ip"] = ipEntry.get()
         launchArg["port"] = int(portEntry.get())
+        writeSettings()
         messagebox.showinfo("Gaming Argument", f"You will join a game at {launchArg['ip']}:{launchArg['port']}")
     else:
         messagebox.showinfo("Gaming Argument", f"Please fill the IP and port to join a game")
@@ -48,4 +56,8 @@ portEntry =  ttk.Entry(tk,width=5)
 portEntry.grid(row=2,column=2)
 
 def gameguide() -> None:
+    if 'ip' in launchArg_history:
+        ipEntry.set(launchArg_history['ip'])
+    if 'port' in launchArg_history:
+        portEntry.insert(0, str(launchArg_history['port']))
     tk.mainloop()

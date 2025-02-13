@@ -16,7 +16,7 @@ import client
 TITLE = "Airwar"
 WIDTH = SCREENSIZE[0]
 HEIGHT = SCREENSIZE[1] + 64
-version = '1.0.0'
+VERSION = 'Ver. 1.0.0'
 gamemode = GameMode.single
 game = None
 websocket = None
@@ -27,11 +27,16 @@ class ImageLoader:
         self.dataList: list = []
         self.drawTriangle = False
         self.awaitingSurfaceList: list[pygame.Surface] = []
+        self.levelInfo: list[pygame.Surface] = []
     
     async def getData(self) -> None:
         global websocket
         response = await websocket.sendMessage(Message(websocket.player_id, "get", {}))
         self.dataList = response['content']['objects']
+    
+    def setLevelInfo(self, *args) -> None:
+        self.levelInfo = []
+        self.levelInfo.append(fontChinese.render(str(websocket.resopnse['content']['level']), True, (19, 19, 19)))
     
     def setTutorial(self, *args) -> None:
         global waitTime
@@ -39,11 +44,11 @@ class ImageLoader:
             data = websocket.resopnse['content']['step']
             playerKeys: list[int] = websocket.resopnse['content']['playerKeys']
             if data == 1:
-                self.awaitingSurfaceList.append(font.render("----------Airwar----------", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(font.render("----------Airwar----------", True, (19, 19, 19)))
                 waitTime = 5 * 60
             if data == 2:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("欢迎来到Airwar新手教程", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("欢迎来到Airwar新手教程", True, (19, 19, 19)))
                 isBusy = pygame.mixer.music.get_busy()
                 if isBusy == False:
                     pygame.mixer.music.stop()
@@ -53,83 +58,83 @@ class ImageLoader:
                 waitTime = 3 * 60
             if data == 3:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("按下W S A D键来控制飞机移动", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("按下W S A D键来控制飞机移动", True, (19, 19, 19)))
                 waitTime = 10 * 60
             if data == 4:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("按下空格键来发射子弹", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("按下空格键来发射子弹", True, (19, 19, 19)))
                 waitTime = 3 * 60
             if data == 5:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("按下Z键可在自身下方绘制标记", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("按下Z键可在自身下方绘制标记", True, (19, 19, 19)))
                 waitTime = 3 * 60
             if data == 6:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("标记可在多人游戏中帮助辨别自己的位置", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("标记可在多人游戏中帮助辨别自己的位置", True, (19, 19, 19)))
                 waitTime = 3 * 60
             if data == 7:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("长按C键进入准备状态", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("长按C键进入准备状态", True, (19, 19, 19)))
                 waitTime = 3 * 60
             if data == 8:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("当所有玩家都进入准备状态后，游戏开始", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("当所有玩家都进入准备状态后，游戏开始", True, (19, 19, 19)))
                 waitTime = 3 * 60
             if data == 9:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("敌人出现了，试着移动并击杀敌人", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("敌人出现了，试着移动并击杀敌人", True, (19, 19, 19)))
                 waitTime = 2147483647
             if data == 10:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("很好", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("很好", True, (19, 19, 19)))
                 waitTime = 2 * 60
             if data == 11:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("击杀敌人后可能会掉落道具", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("击杀敌人后可能会掉落道具", True, (19, 19, 19)))
                 waitTime = 2 * 60
             if data == 12:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("试着再次击杀敌人吧", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("试着再次击杀敌人吧", True, (19, 19, 19)))
                 waitTime = 2147483647
             if data == 13:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("不同的道具有不同的效果", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("不同的道具有不同的效果", True, (19, 19, 19)))
                 waitTime = 2 * 60
             if data == 14:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("可以升级武器，回复血量，或者更换武器等等", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("可以升级武器，回复血量，或者更换武器等等", True, (19, 19, 19)))
                 waitTime = 2 * 60
             if data == 15:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("试着击杀敌人并收集道具吧", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("试着击杀敌人并收集道具吧", True, (19, 19, 19)))
                 waitTime = 2147483647
             if data == 16:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("当敌人数量过多无法解决时", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("当敌人数量过多无法解决时", True, (19, 19, 19)))
                 waitTime = 2 * 60
             if data == 17:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("若右下角有核弹图标", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("若右下角有核弹图标", True, (19, 19, 19)))
                 waitTime = 2 * 60
             if data == 18:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("则可以按下E键使用核弹", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("则可以按下E键使用核弹", True, (19, 19, 19)))
                 waitTime = 2 * 60
             if data == 19:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("核弹可以一次性消灭所有敌人", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("核弹可以一次性消灭所有敌人", True, (19, 19, 19)))
                 waitTime = 2 * 60
             if data == 20:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("使用核弹消灭敌人吧", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("使用核弹消灭敌人吧", True, (19, 19, 19)))
                 waitTime = 2147483647
             if data == 21:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("很好，你已经学会了所有技能了", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("很好，你已经学会了所有技能了", True, (19, 19, 19)))
                 waitTime = 3 * 60
             if data == 22:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("教程结束", True, (0, 0, 0)))
+                self.awaitingSurfaceList.append(fontChinese.render("教程结束", True, (19, 19, 19)))
                 waitTime = 3 * 60
             if data == 23:
                 sys.exit()
@@ -138,10 +143,18 @@ class ImageLoader:
     def draw_(self, *args) -> None:
         #asyncio.run(self.getData())
         screen.fill((230, 230, 230))
+        versionText = font.render(VERSION, True, (19, 19, 19))
+        rect = versionText.get_rect()
+        rect.topright = (WIDTH-8, 8)
+        screen.blit(versionText, rect)
         for surface in self.awaitingSurfaceList:
             rect = surface.get_rect()
             rect.center = (WIDTH/2, HEIGHT/3)
             screen.blit(surface, rect)
+        for info in self.levelInfo:
+            rect = info.get_rect()
+            rect.center = (WIDTH/2, 0)
+            screen.blit(info, rect)
         if websocket != None:
             self.dataList = websocket.resopnse['content']['objects']
             for data in self.dataList:
@@ -231,6 +244,7 @@ class ResourcesLoader:
             "game_state_changed": self.on_gamestate_changed,
             "setTutorial": self.imageLoader.setTutorial,
             "playsound": self.soundLoader.play,
+            "load_level": self.imageLoader.setLevelInfo,
         }
     
     def process(self, responseMessage: Message) -> None:
