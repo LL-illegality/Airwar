@@ -238,6 +238,7 @@ class Weapon:
         self.maxLevel = 5
         self.shooterRace = shooterRace
         self.sound = Sounds.shotgun_shoot
+        self.playSound = True
         self.isShooting = False
     
     def shoot(self, x, y, times: int = 1) -> list[Projectile] | None:
@@ -250,7 +251,10 @@ class Weapon:
                 bullet.y = y
                 retList.append(bullet)
             self.cooldown = self.fireRate
-            Board.msgQueue.push(Message('server', 'playsound', {"sound": self.sound.value}))
+            if self.playSound:
+                Board.msgQueue.push(Message('server', 'playsound', {"sound": self.sound.value}))
+            else:
+                self.playSound = True
             return retList
         else:
             return None
@@ -363,6 +367,9 @@ class LazerGun(Weapon):
     
     def shoot(self, x, y) -> list[Projectile] | None:
         projs = super().shoot(x, y)
+        if random.randint(0, 100) < 20:
+            projs = None
+            self.playSound = False
         if projs is not None:
             proj = projs[0]
             proj.image = self.bulletImageMap[self.level]
@@ -448,6 +455,7 @@ class Enemy(Unit):
     
     def update(self) -> None:
         super().update()
+        self.rotation = ~self.velocity
         if self.weapon is not None:
             self.weapon.isShooting = True
         if self.targetPos is not None:
@@ -485,7 +493,7 @@ class Player(Unit):
         self.isReady = False
         self.isThrowingMagabomb = False
         self.boundingBox = BoundingBox(16, 32)
-        self.weapon = WeaponGroup(Shotgun(self.race), MissileLauncher(self.race))
+        self.weapon = WeaponGroup(Shotgun(self.race))
         self.maxVelocity = 15
     
     def update(self) -> None:
@@ -892,10 +900,12 @@ class Game:
                     level = self.levelLoader.loadLevel()
                 if level == None:
                     self.currState = GameState.gameWin
+                    self.msgQueue.push(Message('server', 'set_title', {'title': "You Win!", 'duration': 10 * gametick}))
                 elif level.waitLoaded == False:
                     self.setWaitTime(random.randint(5, 15) * gametick)
                     self.currState = GameState.loadLevel
                     self.msgQueue.push(Message('server', 'load_level', {'level': level.name}))
+                    self.msgQueue.push(Message('server', 'set_title', {'title': level.name, 'duration': 5 * gametick}))
                     level.waitLoaded = True
                 else:
                     flag = level.loadFlag()

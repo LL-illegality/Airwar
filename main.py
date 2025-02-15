@@ -28,11 +28,18 @@ class ImageLoader:
         self.drawTriangle = False
         self.awaitingSurfaceList: list[pygame.Surface] = []
         self.levelInfo: list[pygame.Surface] = []
+        self.titleInfo: list[dict] = []
     
     async def getData(self) -> None:
         global websocket
         response = await websocket.sendMessage(Message(websocket.player_id, "get", {}))
         self.dataList = response['content']['objects']
+    
+    def setTitle(self, *args) -> None:
+        content = websocket.resopnse['content']
+        self.titleInfo.clear()
+        self.titleInfo.append({"title": fontChinese.render(str(content['title']), True, (19, 19, 19)), "duration": content['duration'], 'delay': content['duration']})
+
     
     def setLevelInfo(self, *args) -> None:
         self.levelInfo = []
@@ -147,14 +154,26 @@ class ImageLoader:
         rect = versionText.get_rect()
         rect.topright = (WIDTH-8, 8)
         screen.blit(versionText, rect)
+        for titleDict in self.titleInfo:
+            title: pygame.Surface = titleDict['title']
+            rect = title.get_rect()
+            rect.center = (WIDTH/2, HEIGHT/4)
+            delay = titleDict['delay']
+            if delay <= 1 * gametick:
+                title.set_alpha(delay / 1 * gametick)
+            screen.blit(title, rect)
+            titleDict['delay'] -= 1
+            if titleDict['delay'] <= 0:
+                self.titleInfo.remove(titleDict)
         for surface in self.awaitingSurfaceList:
             rect = surface.get_rect()
             rect.center = (WIDTH/2, HEIGHT/3)
             screen.blit(surface, rect)
-        for info in self.levelInfo:
-            rect = info.get_rect()
-            rect.center = (WIDTH/2, 0)
-            screen.blit(info, rect)
+        if len(self.titleInfo) == 0:
+            for info in self.levelInfo:
+                rect = info.get_rect()
+                rect.midtop = (WIDTH/2, 8)
+                screen.blit(info, rect)
         if websocket != None:
             self.dataList = websocket.resopnse['content']['objects']
             for data in self.dataList:
@@ -245,6 +264,7 @@ class ResourcesLoader:
             "setTutorial": self.imageLoader.setTutorial,
             "playsound": self.soundLoader.play,
             "load_level": self.imageLoader.setLevelInfo,
+            "set_title": self.imageLoader.setTitle,
         }
     
     def process(self, responseMessage: Message) -> None:
