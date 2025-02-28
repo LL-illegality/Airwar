@@ -1,6 +1,6 @@
 {
     "name": "cpy",
-    "totalFlags": 8,
+    "totalFlags": 15,
     "drops": [
         1,
         1,
@@ -23,6 +23,41 @@
     "flags": [
         {
             "unitTypeList": [
+                "en"
+            ],
+            "timeBeforeNext": 30,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "en"
+            ],
+            "timeBeforeNext": 30,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "test"
+            ],
+            "timeBeforeNext": 30,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "test"
+            ],
+            "timeBeforeNext": 60,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "test"
+            ],
+            "timeBeforeNext": 60,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
                 "en",
                 "en",
                 "test",
@@ -30,7 +65,7 @@
                 "test"
             ],
             "timeBeforeNext": 300,
-            "finishCondition": 0
+            "finishCondition": 1
         },
         {
             "unitTypeList": [
@@ -41,7 +76,7 @@
                 "weakling"
             ],
             "timeBeforeNext": 300,
-            "finishCondition": 0
+            "finishCondition": 1
         },
         {
             "unitTypeList": [
@@ -51,7 +86,7 @@
                 "unit1"
             ],
             "timeBeforeNext": 300,
-            "finishCondition": 0
+            "finishCondition": 1
         },
         {
             "unitTypeList": [
@@ -61,7 +96,7 @@
                 "enemy2"
             ],
             "timeBeforeNext": 300,
-            "finishCondition": 0
+            "finishCondition": 1
         },
         {
             "unitTypeList": [
@@ -72,18 +107,24 @@
                 "en"
             ],
             "timeBeforeNext": 300,
-            "finishCondition": 0
+            "finishCondition": 1
         },
         {
             "unitTypeList": [
                 "enemy2",
                 "enemy2",
-                "weakling",
+                "weakling"
+            ],
+            "timeBeforeNext": 150,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
                 "weakling",
                 "test",
                 "test"
             ],
-            "timeBeforeNext": 300,
+            "timeBeforeNext": 150,
             "finishCondition": 0
         },
         {
@@ -96,7 +137,7 @@
                 "weakling"
             ],
             "timeBeforeNext": 300,
-            "finishCondition": 0
+            "finishCondition": 1
         },
         {
             "unitTypeList": [
@@ -113,7 +154,7 @@
                 "unit1"
             ],
             "timeBeforeNext": 300,
-            "finishCondition": 0
+            "finishCondition": 1
         },
         {
             "unitTypeList": [
@@ -130,7 +171,7 @@
                 "unit1"
             ],
             "timeBeforeNext": 300,
-            "finishCondition": 0
+            "finishCondition": 1
         }
     ]
 }

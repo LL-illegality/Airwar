@@ -486,6 +486,7 @@ class Player(Unit):
     def __init__(self, player_id) -> None:
         super().__init__()
         self.player_id = player_id
+        self.name = self.player_id
         self.race = Race.player
         self.pressedKeyList = []
         self.gottenItem: list[ItemTypes] = []
@@ -654,6 +655,7 @@ class Board:
                     appDict['health'] = item.health
                     appDict['isReady'] = item.isReady
                     appDict['player_id'] = item.player_id
+                    appDict['name'] = item.name
                     appDict['magabombQuantity'] = item.magabombQuantity
                 retList.append(appDict)
         return retList
@@ -880,6 +882,17 @@ class Game:
         retMsg = Message('server', 'screen_info', retDict)
         self.msgQueue.push(retMsg)
     
+    def addFlagUnit(self, flag: Flag) -> None:
+        self.currState = GameState.inGame
+        self.setWaitTime(flag.timeBeforeNext)
+        units = self.levelLoader.createUnits(flag.getUnits())
+        while len(flag.drops) > 0:
+            unitWithDrop = random.choice(units)
+            unitWithDrop.inventory.append(ItemTypes(flag.drops[0]))
+            flag.drops.pop(0)
+        for unit in units:
+            self.board.addUnit(unit, 'unit')
+    
     def detectLevelState(self) -> None:
         if self.isWaitTimeOver() == False:
             pass
@@ -912,15 +925,16 @@ class Game:
                     if flag == None:
                         return
                     else:
-                        self.currState = GameState.inGame
-                        self.setWaitTime(flag.timeBeforeNext)
-                        units = self.levelLoader.createUnits(flag.getUnits())
-                        while len(flag.drops) > 0:
-                            unitWithDrop = random.choice(units)
-                            unitWithDrop.inventory.append(ItemTypes(flag.drops[0]))
-                            flag.drops.pop(0)
-                        for unit in units:
-                            self.board.addUnit(unit, 'unit')
+                        self.addFlagUnit(flag)
+            else:
+                level = self.levelLoader.getCurrLevel()
+                flag = level.loadFlag()
+                if flag == None:
+                    return
+                elif flag.finishCondition == FlagFinishCondition.waitForTime:
+                    self.addFlagUnit(flag)
+                else:
+                    level.currFlagIndex -= 1
 
     def update(self) -> None:
         self.board.update()
@@ -934,7 +948,7 @@ class WebSocketServer:
         self.clients: set[websockets.ClientConnection] = set()  # 存储所有连接的客户端
         self.game = Game(self.messageQueue)
 
-    async def new_player(self) -> int:
+    async def new_player(self, playerName: str) -> int:
         playerNum = 0
         while self.game.board.findPlayer(playerNum) != None:
             playerNum += 1
@@ -946,6 +960,10 @@ class WebSocketServer:
             player.image = Images.player2
         else:
             player.image = Images.player1
+        if playerName != "{default}":
+            player.name = playerName
+        else:
+            player.name = str(player.player_id)
         self.game.board.addPlayer(player)
         return player.player_id
 
@@ -960,7 +978,7 @@ class WebSocketServer:
                 msg = Message(data['sender'], data['type'], data['content'])
                 if msg.type == 'connect':
                     if self.game.currState == GameState.mainMenu:
-                        pid = await self.new_player()
+                        pid = await self.new_player(msg.content['playerName'])
                         await websocket.send(str(Message('server', 'connect', {'player_id': pid})))
                     else:
                         await websocket.send(str(Message('server', 'connect', {'player_id': -1})))

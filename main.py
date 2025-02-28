@@ -16,7 +16,7 @@ import client
 TITLE = "Airwar"
 WIDTH = SCREENSIZE[0]
 HEIGHT = SCREENSIZE[1] + 64
-VERSION = 'Ver. 1.0.0'
+VERSION = 'Ver. 1.0.1'
 gamemode = GameMode.single
 game = None
 websocket = None
@@ -188,6 +188,11 @@ class ImageLoader:
                         rect = tick.get_rect()
                         rect.center = (data['x'], data['y'] - 48)
                         screen.blit(tick, rect)
+                if 'name' in data:
+                    name = littleFont.render(data['name'], True, (19, 19, 19))
+                    rect = name.get_rect()
+                    rect.center = (data['x'], data['y'] + 32)
+                    screen.blit(name, rect)
                 if 'player_id' in data:
                     try:
                         if data['player_id'] == websocket.player_id:
@@ -195,7 +200,7 @@ class ImageLoader:
                                 pygame.draw.polygon(screen, (0, 192, 0), [(data['x'], data['y'] + 24), (data['x'] - 4, data['y'] + (12*1.732)), (data['x'] + 4, data['y'] + (12*1.732))])
                             stateBar = pygame.Surface((WIDTH, 64))
                             stateBar.fill((192, 192, 192))
-                            stateBar.blit(font.render(f"Player{data['player_id']}", True, (19, 19, 19)), (0, 4))
+                            stateBar.blit(font.render(f"Player {data['name']}", True, (19, 19, 19)), (0, 4))
                             stateBar.blit(font.render(f"HP:", True, (19, 19, 19)), (0, 24))
                             pygame.draw.rect(stateBar, (19, 19, 19), (35, 25, 202, 18))
                             pygame.draw.rect(stateBar, (255 * (1 - data['health'] / 100), 255 * (data['health'] / 100), 0), (36, 26, data['health'] * 2, 16))
@@ -272,20 +277,20 @@ class ResourcesLoader:
             self.processMappingTable[responseMessage.type](responseMessage)
     
     def on_gamestate_changed(self, responseMessage: Message) -> None:
-        self.currGameState = GameState(responseMessage.content['state'])
+        ResourcesLoader.currGameState = GameState(responseMessage.content['state'])
         self.musicLoader.play()
 
 '''program launching configuration'''
 
 async def launchClient() -> None:
     global websocket
-    websocket = client.Client(0, guide.launchArg['ip'], guide.launchArg['port'])
+    websocket = client.Client(0, guide.launchArg['ip'], guide.launchArg['port'], guide.launchArg['playerName'])
     await asyncio.gather(*[websocket.connect()])
 
 guide.gameguide()
 if guide.launchArg["mode"] == "single":
     gamemode = GameMode.single
-    websocket = client.SinglePlayerClient(0, game)
+    websocket = client.SinglePlayerClient(0, game, guide.launchArg['playerName'])
     game = Game(websocket.msgQueue)
     websocket.game = game
     websocket.newPlayer()
@@ -301,12 +306,12 @@ screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
 font = pygame.font.SysFont("Consola", 30)
 fontChinese = pygame.font.SysFont("SimHei", 30)
+littleFont = pygame.font.SysFont("Consola", 20)
 pygame.mouse.set_visible(False)
 pygame.display.set_caption(TITLE)
 #pygame.display.set_icon(pygame.image.load(".\\images\\game.ico"))
 
 resourcesLoader = ResourcesLoader()
-#music.play_once("lostcity_intro.wav")
 
 def update() -> None:
     pass

@@ -1,6 +1,6 @@
 {
-    "name": "cpy",
-    "totalFlags": 5,
+    "name": "Level 1",
+    "totalFlags": 7,
     "drops": [
         0,
         1,
@@ -14,14 +14,27 @@
                 "enemy2"
             ],
             "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "enemy2"
+            ],
+            "timeBeforeNext": 30,
             "finishCondition": 0
         },
         {
             "unitTypeList": [
-                "enemy2",
-                "en"
+                "enemy2"
             ],
-            "timeBeforeNext": 300,
+            "timeBeforeNext": 30,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "enemy2"
+            ],
+            "timeBeforeNext": 30,
             "finishCondition": 0
         },
         {
@@ -31,7 +44,7 @@
                 "test"
             ],
             "timeBeforeNext": 300,
-            "finishCondition": 0
+            "finishCondition": 1
         },
         {
             "unitTypeList": [
@@ -40,7 +53,7 @@
                 "test"
             ],
             "timeBeforeNext": 300,
-            "finishCondition": 0
+            "finishCondition": 1
         },
         {
             "unitTypeList": [
@@ -51,7 +64,7 @@
                 "en"
             ],
             "timeBeforeNext": 300,
-            "finishCondition": 0
+            "finishCondition": 1
         }
     ]
 }

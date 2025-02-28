@@ -3,13 +3,15 @@ import json
 import websockets
 import server
 from const import *
+import random
 from data import Message, Queue
 
 class SinglePlayerClient:
-    def __init__(self, player_id: int, game = None) -> None:
+    def __init__(self, player_id: int, game = None, playerName = "{default}") -> None:
         self.player_id = player_id
         self.resopnse = None
         self.isRunning = True
+        self.playerName = playerName
         self.msgQueue = Queue()
         self.game: server.Game = game
         self.tutorialStep = 0
@@ -20,6 +22,10 @@ class SinglePlayerClient:
         player.x = SCREENSIZE[0] / 2
         player.y = 2/3 * SCREENSIZE[1]
         player.image = Images.player1
+        if self.playerName == "{default}":
+            player.name = str(self.player_id)
+        else:
+            player.name = self.playerName
         self.game.board.addPlayer(player)
     
     def isScreenEmpty(self) -> bool:
@@ -37,15 +43,19 @@ class SinglePlayerClient:
         if self.tutorialStep == 9:
             unit = server.EnemyBuilder().build()
             self.addTutorialUnit(unit)
-        if self.tutorialStep == 11:
+        if self.tutorialStep == 12:
             unit = server.EnemyBuilder(inventory=[0], weapon=["Shotgun_normal"]).build()
             self.addTutorialUnit(unit)
         if self.tutorialStep == 15:
-            unit = server.EnemyBuilder(inventory=[0, 1, 2, 3, 4, 5, 6]).build()
-            self.addTutorialUnit(unit)
+            for i in range(7):
+                unit = server.EnemyBuilder(inventory=[i], image=random.choice([Images.ca, Images.enemy, Images.enemy2, Images.rship, Images.unit1])).build()
+                self.addTutorialUnit(unit)
         if self.tutorialStep == 20:
+            for player in self.game.board.players:
+                if player.magabombQuantity == 0:
+                    player.magabombQuantity += 1
             for _ in range(10):
-                unit = server.EnemyBuilder(health=1000000).build()
+                unit = server.EnemyBuilder(health=1000000, image=random.choice([Images.ca, Images.enemy, Images.enemy2, Images.rship, Images.unit1])).build()
                 self.addTutorialUnit(unit)
         #self.resopnse = {'sender': 'server', 'type': 'setTutorial', 'content': {'step': self.tutorialStep, 'playerKeys': self.game.board.players[0].pressedKeyList}}
 
@@ -75,10 +85,11 @@ class SinglePlayerClient:
                     i.health = 10
 
 class Client:
-    def __init__(self, player_id: int, ip: str = "localhost", port: int = 8765) -> None:
+    def __init__(self, player_id: int, ip: str = "localhost", port: int = 8765, playerName: str = "{default}") -> None:
         self.player_id = player_id
         self.ip = ip
         self.port = port
+        self.playerName = playerName
         self.msgQueue = Queue()
         self.resopnse = None
         self.isRunning = True
@@ -98,7 +109,7 @@ class Client:
         uri = f"ws://{self.ip}:{self.port}"
         async with websockets.connect(uri) as websocket:
             # 发送玩家动作
-            msg = Message(str(self.player_id), "connect", {})
+            msg = Message(str(self.player_id), "connect", {"playerName": self.playerName})
             await websocket.send(str(msg))
             # 接收游戏状态
             async for message in websocket:
