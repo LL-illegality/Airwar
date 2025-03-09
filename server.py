@@ -6,6 +6,7 @@ from data import Vector, Message, Queue
 import random
 import json 
 import socket
+import time
 import math
 
 def createInstanceFromClassname(classname: str, kwargs: dict) -> object:
@@ -489,6 +490,7 @@ class Player(Unit):
         self.name = self.player_id
         self.race = Race.player
         self.pressedKeyList = []
+        self.joystickAxisList = [0, 0]
         self.gottenItem: list[ItemTypes] = []
         self.magabombQuantity = 1
         self.isReady = False
@@ -512,12 +514,16 @@ class Player(Unit):
             self.acceleration.y = -1.5
         elif Keys.s in self.pressedKeyList:
             self.acceleration.y = 1.5
+        elif self.joystickAxisList[1] != 0:
+            self.acceleration.y = 1.5 * self.joystickAxisList[1]
         else:
             self.acceleration.y = 0
         if Keys.a in self.pressedKeyList:
             self.acceleration.x = -1.5
         elif Keys.d in self.pressedKeyList:
             self.acceleration.x = 1.5
+        elif self.joystickAxisList[0] != 0:
+            self.acceleration.x = 1.5 * self.joystickAxisList[0]
         else:
             self.acceleration.x = 0
         if self.x < 0 : self.x = 0
@@ -947,6 +953,7 @@ class WebSocketServer:
         self.port = port
         self.clients: set[websockets.ClientConnection] = set()  # 存储所有连接的客户端
         self.game = Game(self.messageQueue)
+        self.frame_duration = 1.0 / gametick
 
     async def new_player(self, playerName: str) -> int:
         playerNum = 0
@@ -967,12 +974,12 @@ class WebSocketServer:
         self.game.board.addPlayer(player)
         return player.player_id
 
-    async def handle_client(self, websocket) -> None:
+    async def handle_client(self, websocket: websockets.ClientConnection) -> None:
         # 新的客户端连接
         self.clients.add(websocket)
         try:
             async for message in websocket:
-                print(f"收到消息: {message}")
+                #print(f"收到消息: {message}")
                 # 解析消息
                 data = eval(message)
                 msg = Message(data['sender'], data['type'], data['content'])
@@ -997,6 +1004,29 @@ class WebSocketServer:
                         key = msg.content['key']
                         if key in player.pressedKeyList:
                             player.pressedKeyList.remove(msg.content['key'])
+                if msg.type == 'joyAxis':
+                    player = self.game.board.findPlayer(int(msg.sender))
+                    if player != None:
+                        player.joystickAxisList[msg.content['axis']] = msg.content['value']
+                        if abs(msg.content['value']) < 0.2:
+                            player.joystickAxisList[msg.content['axis']] = 0
+                if msg.type == 'joyHat':
+                    player = self.game.board.findPlayer(int(msg.sender))
+                    if player != None:
+                        if msg.content['value'] == [0, 0]:
+                            player.pressedKeyList.remove(Keys.w) if Keys.w in player.pressedKeyList else None
+                            player.pressedKeyList.remove(Keys.s) if Keys.s in player.pressedKeyList else None
+                            player.pressedKeyList.remove(Keys.a) if Keys.a in player.pressedKeyList else None
+                            player.pressedKeyList.remove(Keys.d) if Keys.d in player.pressedKeyList else None
+                        else:
+                            if msg.content['value'][0] == 1:
+                                player.pressedKeyList.append(Keys.d)
+                            if msg.content['value'][0] == -1:
+                                player.pressedKeyList.append(Keys.a)
+                            if msg.content['value'][1] == 1:
+                                player.pressedKeyList.append(Keys.w)
+                            if msg.content['value'][1] == -1:
+                                player.pressedKeyList.append(Keys.s)
                     # if msg.content['key'] == Keys.esc:
                     #     self.game.isPaused = self.game.isPaused ^ True
         except websockets.ConnectionClosed as e:
@@ -1010,11 +1040,16 @@ class WebSocketServer:
     
     async def Judge(self) -> None:
         while True:
-            await asyncio.sleep(1 / gametick)
-            if self.game.isPaused == False:
-                self.game.update()
-            self.game.detectLevelState()
-            await self.broadcast_game_state()
+                start_time = time.perf_counter()
+                if self.game.isPaused == False:
+                    self.game.update()
+                self.game.detectLevelState()
+                asyncio.gather(self.broadcast_game_state())
+                end_time = time.perf_counter()
+                elapsed_time = end_time - start_time
+                sleep_time = self.frame_duration - elapsed_time
+                if sleep_time > 0:
+                    await asyncio.sleep(sleep_time)
 
     async def broadcast_game_state(self) -> None:
         """向所有连接的客户端广播游戏状态"""

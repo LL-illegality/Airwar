@@ -16,8 +16,10 @@ import client
 TITLE = "Airwar"
 WIDTH = SCREENSIZE[0]
 HEIGHT = SCREENSIZE[1] + 64
-VERSION = 'Ver. 1.0.1'
+VERSION = 'Ver. 1.0.2'
 gamemode = GameMode.single
+hasJoystick = False
+lastJoyAxis = [0, 0]
 game = None
 websocket = None
 waitTime = 0
@@ -29,6 +31,7 @@ class ImageLoader:
         self.awaitingSurfaceList: list[pygame.Surface] = []
         self.levelInfo: list[pygame.Surface] = []
         self.titleInfo: list[dict] = []
+        self.operationText: dict = keyBoardOperationTexts
     
     async def getData(self) -> None:
         global websocket
@@ -65,15 +68,15 @@ class ImageLoader:
                 waitTime = 3 * 60
             if data == 3:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("按下W S A D键来控制飞机移动", True, (19, 19, 19)))
+                self.awaitingSurfaceList.append(fontChinese.render(f"使用{self.operationText["move"]}来控制飞机移动", True, (19, 19, 19)))
                 waitTime = 10 * 60
             if data == 4:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("按下空格键来发射子弹", True, (19, 19, 19)))
+                self.awaitingSurfaceList.append(fontChinese.render(f"按下{self.operationText['shoot']}来发射子弹", True, (19, 19, 19)))
                 waitTime = 3 * 60
             if data == 5:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("按下Z键可在自身下方绘制标记", True, (19, 19, 19)))
+                self.awaitingSurfaceList.append(fontChinese.render(f"按下{self.operationText['drawMarker']}可在自身下方绘制标记", True, (19, 19, 19)))
                 waitTime = 3 * 60
             if data == 6:
                 self.awaitingSurfaceList.clear()
@@ -81,7 +84,7 @@ class ImageLoader:
                 waitTime = 3 * 60
             if data == 7:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("长按C键进入准备状态", True, (19, 19, 19)))
+                self.awaitingSurfaceList.append(fontChinese.render(f"长按{self.operationText['prepare']}进入准备状态", True, (19, 19, 19)))
                 waitTime = 3 * 60
             if data == 8:
                 self.awaitingSurfaceList.clear()
@@ -125,7 +128,7 @@ class ImageLoader:
                 waitTime = 2 * 60
             if data == 18:
                 self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("则可以按下E键使用核弹", True, (19, 19, 19)))
+                self.awaitingSurfaceList.append(fontChinese.render(f"则可以按下{self.operationText['nuclear']}使用核弹", True, (19, 19, 19)))
                 waitTime = 2 * 60
             if data == 19:
                 self.awaitingSurfaceList.clear()
@@ -263,6 +266,8 @@ class ResourcesLoader:
         self.imageLoader = ImageLoader()
         self.soundLoader = SoundLoader()
         self.musicLoader = MusicLoader()
+        if hasJoystick:
+            self.imageLoader.operationText = joyStickOperationTexts
         self.processMappingTable: dict[str, callable | None] = {
             "screen_info": self.imageLoader.draw_,
             "game_state_changed": self.on_gamestate_changed,
@@ -304,6 +309,10 @@ else:
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
+if pygame.joystick.get_count() > 0:
+        hasJoystick = True
+        joystick = pygame.joystick.Joystick(0)
+        joystick.init()
 font = pygame.font.SysFont("Consola", 30)
 fontChinese = pygame.font.SysFont("SimHei", 30)
 littleFont = pygame.font.SysFont("Consola", 20)
@@ -323,13 +332,20 @@ def on_key_down(key) -> None:
 def on_key_up(key) -> None:
     asyncio.run(websocket.sendMessage(Message(str(websocket.player_id), "keyUp", {"key": key})))
 
+def on_joyaxis(axis, value) -> None:
+    global lastJoyAxis
+    asyncio.run(websocket.sendMessage(Message(str(websocket.player_id), "joyAxis", {"axis": axis, "value": value})))
+
+def on_hatmotion(value) -> None:
+    asyncio.run(websocket.sendMessage(Message(str(websocket.player_id), "joyHat", {"value": value})))
+
 async def on_quit() -> None:
     if websocket != None:
         await websocket.disconnect()
     sys.exit()
 
 def mainloop() -> None:
-    global waitTime
+    global waitTime, hasJoystick, lastJoyAxis
     def process():
         if websocket != None:
             while websocket.msgQueue.isEmpty() == False:
@@ -354,6 +370,36 @@ def mainloop() -> None:
                     pygame.mixer.Sound.play(soundMap.sounds[Sounds.unprepare])
                 if event.key == pygame.K_z:
                     resourcesLoader.imageLoader.drawTriangle = not resourcesLoader.imageLoader.drawTriangle
+            if hasJoystick:
+                currJoyAxis = (joystick.get_axis(0), joystick.get_axis(1))
+                if abs(currJoyAxis[0] - lastJoyAxis[0]) > 0.2:
+                    on_joyaxis(0, currJoyAxis[0])
+                    lastJoyAxis[0] = currJoyAxis[0]
+                if abs(currJoyAxis[1] - lastJoyAxis[1]) > 0.2:
+                    on_joyaxis(1, currJoyAxis[1])
+                    lastJoyAxis[1] = currJoyAxis[1]
+                if event.type == pygame.JOYBUTTONDOWN:
+                    # print(event.button)
+                    if event.button == 0:
+                        on_key_down(pygame.K_c)
+                        pygame.mixer.Sound.play(soundMap.sounds[Sounds.prepare])
+                    if event.button == 1:
+                        on_key_down(pygame.K_z)
+                    if event.button == 2:
+                        on_key_down(pygame.K_e)
+                    if event.button == 3:
+                        on_key_down(pygame.K_SPACE)
+                if event.type == pygame.JOYBUTTONUP:
+                    if event.button == 0:
+                        on_key_up(pygame.K_c)
+                        pygame.mixer.Sound.play(soundMap.sounds[Sounds.unprepare])
+                    if event.button == 3:
+                        on_key_up(pygame.K_SPACE)
+                    if event.button == 1:
+                        resourcesLoader.imageLoader.drawTriangle = not resourcesLoader.imageLoader.drawTriangle
+                if event.type == pygame.JOYHATMOTION:
+                    # print(event.hat, event.value)
+                    on_hatmotion(event.value)
         if websocket != None:
             if game != None:
                 websocket.update()

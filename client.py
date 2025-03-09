@@ -73,6 +73,29 @@ class SinglePlayerClient:
                 key = msg.content['key']
                 if key in player.pressedKeyList:
                     player.pressedKeyList.remove(msg.content['key'])
+        if msg.type == 'joyAxis':
+                    player = self.game.board.findPlayer(int(msg.sender))
+                    if player != None:
+                        player.joystickAxisList[msg.content['axis']] = msg.content['value']
+                        if abs(msg.content['value']) < 0.2:
+                            player.joystickAxisList[msg.content['axis']] = 0
+        if msg.type == 'joyHat':
+            player = self.game.board.findPlayer(int(msg.sender))
+            if player != None:
+                if msg.content['value'] == [0, 0]:
+                    player.pressedKeyList.remove(Keys.w) if Keys.w in player.pressedKeyList else None
+                    player.pressedKeyList.remove(Keys.s) if Keys.s in player.pressedKeyList else None
+                    player.pressedKeyList.remove(Keys.a) if Keys.a in player.pressedKeyList else None
+                    player.pressedKeyList.remove(Keys.d) if Keys.d in player.pressedKeyList else None
+                else:
+                    if msg.content['value'][0] == 1:
+                        player.pressedKeyList.append(Keys.d)
+                    if msg.content['value'][0] == -1:
+                        player.pressedKeyList.append(Keys.a)
+                    if msg.content['value'][1] == 1:
+                        player.pressedKeyList.append(Keys.w)
+                    if msg.content['value'][1] == -1:
+                        player.pressedKeyList.append(Keys.s)
     
     def requestToResponse(self) -> None:
         self.resopnse = json.loads(str(self.msgQueue.pop()))

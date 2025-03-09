@@ -166,3 +166,19 @@ itemMap = {
     ItemTypes.magabomb: Images.item_maga,
     ItemTypes.medic: Images.item_medic
 }
+
+keyBoardOperationTexts = {
+    "move": "W S A D",
+    "shoot": "Space",
+    "drawMarker": "Z",
+    "prepare": "C",
+    "nuclear": "E"
+}
+
+joyStickOperationTexts = {
+    "move": "左摇杆/十字键",
+    "shoot": "按钮4",
+    "drawMarker": "按钮2",
+    "prepare": "按钮1",
+    "nuclear": "按钮3"
+}

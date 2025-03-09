@@ -131,8 +131,8 @@
                 "test",
                 "test"
             ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
+            "timeBeforeNext": 150,
+            "finishCondition": 0
         },
         {
             "unitTypeList": [
@@ -142,8 +142,8 @@
                 "weakling",
                 "weakling"
             ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
+            "timeBeforeNext": 150,
+            "finishCondition": 0
         },
         {
             "unitTypeList": [
