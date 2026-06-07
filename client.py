@@ -7,62 +7,33 @@ import random
 from data import Message, Queue
 
 class SinglePlayerClient:
-    def __init__(self, player_id: int, game = None, playerName = "{default}") -> None:
+    def __init__(self, player_id: int, game: server.Game | None = None, playerName: str = "{default}") -> None:
         self.player_id = player_id
-        self.resopnse = None
+        self.resopnse: dict | None = None
         self.isRunning = True
         self.playerName = playerName
         self.msgQueue = Queue()
-        self.game: server.Game = game
-        self.tutorialStep = 0
-        self.maxTutorialStep = 100
-    
+        self.game: server.Game | None = game
+
     def newPlayer(self) -> None:
+        if self.game is None:
+            return
         player = server.Player(self.player_id)
-        player.x = SCREENSIZE[0] / 2
-        player.y = 2/3 * SCREENSIZE[1]
+        player.x = SCREENSIZE[0] / 2.0
+        player.y = 2.0 / 3.0 * SCREENSIZE[1]
         player.image = Images.player1
         if self.playerName == "{default}":
             player.name = str(self.player_id)
         else:
             player.name = self.playerName
         self.game.board.addPlayer(player)
-    
-    def isScreenEmpty(self) -> bool:
-        return len(self.game.board.units) == 0
-
-    def addTutorialUnit(self, unit: server.Unit) -> None:
-        unit.x = SCREENSIZE[0] / 2
-        unit.boundingBox = server.BoundingBox(56, 56)
-        self.game.board.addUnit(unit, 'unit')
-        unit.race = Race.enemy
-    
-    def setTutorialStep(self) -> None:
-        self.tutorialStep += 1
-        self.msgQueue.push(Message('server', 'setTutorial', {'step': self.tutorialStep, 'playerKeys': self.game.board.players[0].pressedKeyList}))
-        if self.tutorialStep == 9:
-            unit = server.EnemyBuilder().build()
-            self.addTutorialUnit(unit)
-        if self.tutorialStep == 12:
-            unit = server.EnemyBuilder(inventory=[0], weapon=["Shotgun_normal"]).build()
-            self.addTutorialUnit(unit)
-        if self.tutorialStep == 15:
-            for i in range(7):
-                unit = server.EnemyBuilder(inventory=[i], image=random.choice([Images.ca, Images.enemy, Images.enemy2, Images.rship, Images.unit1])).build()
-                self.addTutorialUnit(unit)
-        if self.tutorialStep == 20:
-            for player in self.game.board.players:
-                if player.magabombQuantity == 0:
-                    player.magabombQuantity += 1
-            for _ in range(10):
-                unit = server.EnemyBuilder(health=1000000, image=random.choice([Images.ca, Images.enemy, Images.enemy2, Images.rship, Images.unit1])).build()
-                self.addTutorialUnit(unit)
-        #self.resopnse = {'sender': 'server', 'type': 'setTutorial', 'content': {'step': self.tutorialStep, 'playerKeys': self.game.board.players[0].pressedKeyList}}
 
     async def disconnect(self) -> None:
         ...
-    
-    async def sendMessage(self, msg: Message) -> str:
+
+    async def sendMessage(self, msg: Message) -> str | None:
+        if self.game is None:
+            return None
         if msg.type == 'keyDown':
             player = self.game.board.findPlayer(int(msg.sender))
             if player != None:
@@ -74,11 +45,11 @@ class SinglePlayerClient:
                 if key in player.pressedKeyList:
                     player.pressedKeyList.remove(msg.content['key'])
         if msg.type == 'joyAxis':
-                    player = self.game.board.findPlayer(int(msg.sender))
-                    if player != None:
-                        player.joystickAxisList[msg.content['axis']] = msg.content['value']
-                        if abs(msg.content['value']) < 0.2:
-                            player.joystickAxisList[msg.content['axis']] = 0
+            player = self.game.board.findPlayer(int(msg.sender))
+            if player != None:
+                player.joystickAxisList[msg.content['axis']] = msg.content['value']
+                if abs(msg.content['value']) < 0.2:
+                    player.joystickAxisList[msg.content['axis']] = 0
         if msg.type == 'joyHat':
             player = self.game.board.findPlayer(int(msg.sender))
             if player != None:
@@ -96,16 +67,14 @@ class SinglePlayerClient:
                         player.pressedKeyList.append(Keys.w)
                     if msg.content['value'][1] == -1:
                         player.pressedKeyList.append(Keys.s)
-    
+        return None
+
     def requestToResponse(self) -> None:
         self.resopnse = json.loads(str(self.msgQueue.pop()))
-    
+
     def update(self) -> None:
         if self.game != None:
             self.game.update()
-            for i in self.game.board.players:
-                if i.health < 10:
-                    i.health = 10
 
 class Client:
     def __init__(self, player_id: int, ip: str = "localhost", port: int = 8765, playerName: str = "{default}") -> None:
@@ -114,40 +83,35 @@ class Client:
         self.port = port
         self.playerName = playerName
         self.msgQueue = Queue()
-        self.resopnse = None
+        self.resopnse: dict | None = None
         self.isRunning = True
     
-    async def sendMessage(self, message: Message) -> str:
+    async def sendMessage(self, msg: Message) -> dict | None:
         uri = f"ws://{self.ip}:{self.port}"
-        async with websockets.connect(uri) as websocket:
-            # 发送玩家动作
-            await websocket.send(str(message))
-            # 接收游戏状态
-            async for message in websocket:
-                response = json.loads(message)
-                #print(f"msg response: {response}")
+        async with websockets.connect(uri) as ws:
+            await ws.send(str(msg))
+            async for ws_message in ws:
+                response = json.loads(ws_message)
                 return response
+        return None
     
     async def connect(self) -> None:
         uri = f"ws://{self.ip}:{self.port}"
-        async with websockets.connect(uri) as websocket:
-            # 发送玩家动作
+        async with websockets.connect(uri) as ws:
             msg = Message(str(self.player_id), "connect", {"playerName": self.playerName})
-            await websocket.send(str(msg))
-            # 接收游戏状态
-            async for message in websocket:
-                game_state = json.loads(message)
-                #print(f"connect response: {game_state}")
+            await ws.send(str(msg))
+            async for ws_message in ws:
+                game_state = json.loads(ws_message)
                 if game_state["type"] == "connect":
                     self.player_id = game_state["content"]["player_id"]
                     print(f"player connected")
                     if self.player_id == -1:
                         self.isRunning = False
                     game_state = None
-                #self.resopnse = game_state
-                self.msgQueue.push(game_state)
+                if game_state is not None:
+                    self.msgQueue.push(game_state)
                 if not self.isRunning:
-                    await websocket.send(str(Message(str(self.player_id), "disconnect", {})))
+                    await ws.send(str(Message(str(self.player_id), "disconnect", {})))
                     return
     
     async def disconnect(self) -> None:

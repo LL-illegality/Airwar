@@ -43,15 +43,17 @@ class Queue:
         return len(self.queue)
 
 class Vector:
-    def __init__(self, x, y) -> None:
+    def __init__(self, x: float, y: float) -> None:
         self.x = x
         self.y = y
     
-    def __invert__(self) -> int:
+    def __invert__(self) -> float:
         #get the angle of the vector
         return math.atan2(self.y, self.x) * 180 / math.pi + 90
     
-    def __eq__(self, other: "Vector") -> bool:
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Vector):
+            return NotImplemented
         return self.x == other.x and self.y == other.y
     
     def __str__(self) -> str:
@@ -75,9 +77,12 @@ class Vector:
         y0 = y1 - y2
         return Vector(x0, y0)
     
-    def __mul__(self, other: int) -> "Vector":
+    def __mul__(self, other: float) -> "Vector":
         x1 = self.x
         y1=  self.y
         x0 = x1 * other
         y0 = y1 * other
         return Vector(x0, y0)
+    
+    def __rmul__(self, other: float) -> "Vector":
+        return self.__mul__(other)

@@ -13,7 +13,7 @@ def createInstanceFromClassname(classname: str, kwargs: dict) -> object:
     return globals()[classname](**kwargs)
 
 class Point:
-    def __init__(self, x = 0, y = 0) -> None:
+    def __init__(self, x: float = 0, y: float = 0) -> None:
         self.x = x
         self.y = y
     
@@ -21,26 +21,26 @@ class Point:
         return Vector(other.x - self.x, other.y - self.y)
 
 class BoundingBox:
-    def __init__(self, width, height) -> None:
+    def __init__(self, width: float, height: float) -> None:
         self.width = width
         self.height = height
     
-    def getRect(self, x, y) -> tuple[Point, Point]:
+    def getRect(self, x: float, y: float) -> tuple[Point, Point]:
         luPoint = Point(x - (self.width/2), y - (self.height/2))
         rdPoint = Point(x + (self.width/2), y + (self.height/2))
         return (luPoint, rdPoint)
 
 class Entity:
-    def __init__(self, x = 0, y = 0, id = -1) -> None:
+    def __init__(self, x: float = 0, y: float = 0, id: int = -1) -> None:
         self.x = x
         self.y = y
         self.id = id
-        self.image: Images = None
-        self.boundingBox: BoundingBox = None
+        self.image: Images | None = None
+        self.boundingBox: BoundingBox | None = None
         self.velocity = Vector(0, 0)
         self.acceleration = Vector(0, 0)
-        self.rotation = 0
-        self.maxVelocity = None
+        self.rotation = 0.0
+        self.maxVelocity: float | None = None
         self.velocityMultiplier = 0.9
         self.race = Race.neutral
         self.isAlive = True
@@ -77,9 +77,9 @@ class Entity:
     def onCollision(self, other: "Entity") -> None:
         ...
     
-    def __eq__(self, other: "Entity") -> bool:
-        if other is None:
-            return False
+    def __eq__(self, other: object) -> bool:
+        if not isinstance(other, Entity):
+            return NotImplemented
         return self.id == other.id
     
     def __and__(self, other: "Entity") -> bool:
@@ -97,9 +97,9 @@ class Item(Entity):
         super().__init__()
         self.item = item
         self.image = itemMap[item]
-        self.lifetime = 30 * gametick
+        self.lifetime = 20 * gametick
         self.boundingBox = BoundingBox(24, 24)
-        self.velocity = Vector(random.randint(-10, 10), random.randint(-10, 10))
+        self.velocity = Vector(random.randint(-5, 5), random.randint(-5, 15))
         self.velocityMultiplier = 1
         self.redirectionDelay = 0
     
@@ -119,12 +119,12 @@ class Item(Entity):
             self.redirectionDelay -= 1
     
     def onCollision(self, other: Entity) -> None:
-        if other.race == Race.player:
+        if other.race == Race.player and isinstance(other, Player):
             other.gottenItem.append(self.item)
             self.isAlive = False
 
 class Projectile(Entity):
-    def __init__(self, damage = 10, lifetime = 1000):
+    def __init__(self, damage: float = 10, lifetime: float = 1000):
         super().__init__()
         self.damage = damage
         self.lifetime = lifetime
@@ -132,6 +132,7 @@ class Projectile(Entity):
         self.boundingBox = BoundingBox(3, 8)
         self.chooseTarget = False
         self.velocityMultiplier = 1
+        self.target: "Entity | None" = None
     
     def update(self) -> None:
         super().update()
@@ -140,36 +141,36 @@ class Projectile(Entity):
             self.isAlive = False
         self.rotation = ~self.velocity
     
-    def onCollision(self, other):
-        if other.race != self.shooterRace and other.race != Race.neutral:
+    def onCollision(self, other: Entity) -> None:
+        if other.race != self.shooterRace and other.race != Race.neutral and isinstance(other, Unit):
             other.health -= self.damage
             self.isAlive = False
 
 class Bullet(Projectile):
-    def __init__(self, damage = 5, lifetime = 150) -> None:
+    def __init__(self, damage: float = 5, lifetime: float = 150) -> None:
         super().__init__(damage, lifetime)
         self.image = Images.bullet1
         self.boundingBox = BoundingBox(3, 8)
         self.velocity = Vector(0, -10)
     
-    def onCollision(self, other):
+    def onCollision(self, other: Entity) -> None:
         super().onCollision(other)
 
 class Lazer(Projectile):
-    def __init__(self, damage = 1.5, lifetime = 150) -> None:
+    def __init__(self, damage: float = 1.5, lifetime: float = 150) -> None:
         super().__init__(damage, lifetime)
         self.image = Images.lazer1
         self.boundingBox = BoundingBox(3, 8)
         self.velocity = Vector(0, -15)
 
 class Missile(Projectile):
-    def __init__(self, damage = 4, handedness = 1, lifetime = 150) -> None:
+    def __init__(self, damage: float = 4, handedness: int = 1, lifetime: float = 150) -> None:
         super().__init__(damage, lifetime)
         self.image = Images.missile
         self.handedness = handedness
         self.boundingBox = BoundingBox(12, 16)
         self.velocity = Vector(1 * self.handedness, -4)
-        self.target: Entity = None
+        self.target: Entity | None = None
         self.lockTargetDelay = 0.5 * gametick
         self.awaitedDelay = 1.5 * gametick
         self.acceleration = Vector(0, -0.5)
@@ -191,7 +192,7 @@ class Missile(Projectile):
                 self.awaitedDelay -= 1
 
 class Rocket(Projectile):
-    def __init__(self, damage = 10, handedness = 1, lifetime = 150) -> None:
+    def __init__(self, damage: float = 12, handedness: int = 1, lifetime: float = 150) -> None:
         super().__init__(damage, lifetime)
         self.image = Images.rocket
         self.handedness = handedness
@@ -200,7 +201,7 @@ class Rocket(Projectile):
         self.acceleration = Vector(0, -0.7)
 
 class EnergyBall(Projectile):
-    def __init__(self, damage = 12, lifetime = 150) -> None:
+    def __init__(self, damage: float = 12, lifetime: float = 150) -> None:
         super().__init__(damage, lifetime)
         self.image = Images.energyball
         self.chooseTarget = True
@@ -208,20 +209,21 @@ class EnergyBall(Projectile):
         self.velocity = Vector(0, 4)
 
 class Magabomb(Projectile):
-    def __init__(self, damage = 10, lifetime = 2147483647) -> None:
+    def __init__(self, damage: float = 10, lifetime: float = 2147483647) -> None:
         super().__init__(damage, lifetime)
         self.image = Images.magabomb
-        self.explodePos = (SCREENSIZE[0] / 2, SCREENSIZE[1] / 2)
-        self.boundingBox = None
+        self.explodePos: tuple[float, float] = (SCREENSIZE[0] / 2, SCREENSIZE[1] / 2)
+        self.boundingBox: BoundingBox | None = None
+        self.isExploding = False
         self.velocity = Vector(0, 10)
     
-    def onCollision(self, other):
+    def onCollision(self, other: Entity) -> None:
         pass
-
+    
     def explode(self) -> None:
         self.isAlive = False
         self.isExploding = True
-
+    
     def update(self) -> None:
         super().update()
         distance = ((self.explodePos[0] - self.x) ** 2 + (self.explodePos[1] - self.y) ** 2) ** 0.5
@@ -231,7 +233,7 @@ class Magabomb(Projectile):
             self.faceToTarget(Entity(self.explodePos[0], self.explodePos[1]), 'velocity')
 
 class Weapon:
-    def __init__(self, bullet: Projectile, fireRate: int = 10, shooterRace: Race = Race.neutral) -> None:
+    def __init__(self, bullet: Projectile, fireRate: float = 10, shooterRace: Race = Race.neutral) -> None:
         self.bullet = bullet
         self.fireRate = fireRate
         self.cooldown = 0
@@ -242,7 +244,7 @@ class Weapon:
         self.playSound = True
         self.isShooting = False
     
-    def shoot(self, x, y, times: int = 1) -> list[Projectile] | None:
+    def shoot(self, x: float, y: float, times: int = 1) -> list[Projectile] | None:
         if self.isShooting and self.cooldown <= 0:
             retList: list[Projectile] = []
             for _ in range(times):
@@ -299,11 +301,11 @@ class WeaponGroup:
         for weapon in self.weapons:
             weapon.isShooting = value
     
-    def shoot(self, x, y) -> list[Projectile]:
-        retList = []
+    def shoot(self, x: float, y: float) -> list[Projectile | None]:
+        retList: list[Projectile | None] = []
         for weapon in self.weapons:
             proj = weapon.shoot(x, y)
-            if type(proj) == list:
+            if isinstance(proj, list):
                 retList.extend(proj)
             else:
                 retList.append(proj)
@@ -321,7 +323,7 @@ class EnergyWeapon(Weapon):
         self.maxLevel = 0
 
 class Shotgun(Weapon):
-    bulletSpreadMap = {
+    bulletSpreadMap: dict[int, list[int | tuple[int, int]]] = {
         1: [0],
         2: [-2, 2],
         3: [(-3, 0), 0, (3, 0)],
@@ -332,30 +334,31 @@ class Shotgun(Weapon):
         super().__init__(Bullet(), 5, shooterRace)
         self.sound = Sounds.shotgun_shoot
     
-    def shoot(self, x, y) -> list[Projectile] | None:
+    def shoot(self, x: float, y: float, times: int = 1) -> list[Projectile] | None:
         projs = super().shoot(x, y, self.level)
         if projs is not None:
             for i in range(len(projs)):
                 proj = projs[i]
                 spreadList = self.bulletSpreadMap[self.level]
-                if type(spreadList[i]) == tuple:
-                    proj.velocity += Vector(*spreadList[i])
-                if type(spreadList[i]) == int:
-                    proj.x += spreadList[i]
+                item = spreadList[i]
+                if isinstance(item, tuple):
+                    proj.velocity += Vector(item[0], item[1])
+                else:
+                    proj.x += item
                 if self.shooterRace == Race.enemy:
                     proj.chooseTarget = True
                     proj.image = Images.bullet_enemy
         return projs
 
 class LazerGun(Weapon):
-    bulletImageMap = {
+    bulletImageMap: dict[int, Images] = {
         1: Images.lazer1,
         2: Images.lazer2,
         3: Images.lazer3,
         4: Images.lazer4,
         5: Images.lazer5
     }
-    bulletDamageMap = {
+    bulletDamageMap: dict[int, float] = {
         1: 1.5,
         2: 4.5,
         3: 7.5,
@@ -366,7 +369,7 @@ class LazerGun(Weapon):
         super().__init__(Lazer(), 1.5, shooterRace)
         self.sound = Sounds.lazer_shoot
     
-    def shoot(self, x, y) -> list[Projectile] | None:
+    def shoot(self, x: float, y: float, times: int = 1) -> list[Projectile] | None:
         projs = super().shoot(x, y)
         if random.randint(0, 100) < 20:
             projs = None
@@ -388,11 +391,11 @@ class MissileLauncher(Weapon):
         self.maxLevel = 0
         self.sound = Sounds.missile_shoot
 
-    def shoot(self, x, y) -> list[Projectile] | None:
+    def shoot(self, x: float, y: float, times: int = 1) -> list[Projectile] | None:
         if self.isShooting and self.cooldown <= 0:
             Board.msgQueue.push(Message('server', 'playsound', {"sound": self.sound.value}))
-            missileL = type(self.bullet)()
-            missileR = type(self.bullet)(handedness = -1)
+            missileL = Missile()
+            missileR = Missile(handedness=-1)
             missileL.shooterRace = self.shooterRace
             missileL.x = x
             missileL.y = y
@@ -404,14 +407,26 @@ class MissileLauncher(Weapon):
         else:
             return None
 
-class RocketLauncher(MissileLauncher):
+class RocketLauncher(Weapon):
     def __init__(self, shooterRace: Race) -> None:
-        super().__init__(shooterRace)
-        self.bullet = Rocket()
+        super().__init__(Rocket(), 20, shooterRace)
         self.sound = Sounds.rocket_shoot
     
-    def shoot(self, x, y) -> list[Projectile] | None:
-        return super().shoot(x, y)
+    def shoot(self, x: float, y: float, times: int = 1) -> list[Projectile] | None:
+        if self.isShooting and self.cooldown <= 0:
+            Board.msgQueue.push(Message('server', 'playsound', {"sound": self.sound.value}))
+            RocketL = Rocket()
+            RocketR = Rocket(handedness=-1)
+            RocketL.shooterRace = self.shooterRace
+            RocketL.x = x
+            RocketL.y = y
+            RocketR.shooterRace = self.shooterRace
+            RocketR.x = x
+            RocketR.y = y
+            self.cooldown = self.fireRate
+            return [RocketL, RocketR]
+        else:
+            return None
 
 class Shotgun_slow(Shotgun):
     def __init__(self, shooterRace: Race) -> None:
@@ -429,10 +444,10 @@ class MissileLauncher_slow(MissileLauncher):
         self.fireRate = 1.5 * gametick
 
 class Unit(Entity):
-    def __init__(self, x = 0, y = 0, health = 100, width = 100, height = 50) -> None:
+    def __init__(self, x: float = 0, y: float = 0, health: float = 100, width: float = 100, height: float = 50) -> None:
         super().__init__(x, y)
         self.health = health
-        self.weapon: WeaponGroup = None
+        self.weapon = WeaponGroup()
         self.boundingBox = BoundingBox(width, height)
         self.inventory: list[ItemTypes] = []
     
@@ -440,15 +455,14 @@ class Unit(Entity):
         super().update()
         if self.health <= 0:
             self.isAlive = False
-        if self.weapon is not None:
-            self.weapon.update()
+        self.weapon.update()
 
 class Enemy(Unit):
-    def __inti__(self) -> None:
+    def __init__(self) -> None:
         super().__init__()
         self.race = Race.enemy
-        self.weapon = None
-        self.targetPos: list[int] = None
+        self.weapon = WeaponGroup()
+        self.targetPos: list[int] | None = None
     
     def randomTargetPos(self) -> None:
         self.targetPos = [random.randint(0, SCREENSIZE[0]), random.randint(0, SCREENSIZE[1])]
@@ -457,8 +471,7 @@ class Enemy(Unit):
     def update(self) -> None:
         super().update()
         self.rotation = ~self.velocity
-        if self.weapon is not None:
-            self.weapon.isShooting = True
+        self.weapon.isShooting = True
         if self.targetPos is not None:
             self.faceToTargetPos()
         else:
@@ -471,6 +484,8 @@ class Enemy(Unit):
             self.randomTargetPos()
     
     def faceToTargetPos(self) -> None:
+        if self.targetPos is None:
+            return
         a0 = Vector(self.targetPos[0] - self.x, self.targetPos[1] - self.y)
         l0 = (a0.x**2 + a0.y**2)**0.5
         ls = (self.acceleration.x**2 + self.acceleration.y**2)**0.5
@@ -484,20 +499,22 @@ class Enemy(Unit):
             return None
 
 class Player(Unit):
-    def __init__(self, player_id) -> None:
+    x: float
+    y: float
+    def __init__(self, player_id: int) -> None:
         super().__init__()
         self.player_id = player_id
-        self.name = self.player_id
+        self.name: str = str(self.player_id)
         self.race = Race.player
-        self.pressedKeyList = []
-        self.joystickAxisList = [0, 0]
+        self.pressedKeyList: list[int] = []
+        self.joystickAxisList: list[float] = [0.0, 0.0]
         self.gottenItem: list[ItemTypes] = []
         self.magabombQuantity = 1
         self.isReady = False
         self.isThrowingMagabomb = False
         self.boundingBox = BoundingBox(16, 32)
         self.weapon = WeaponGroup(Shotgun(self.race))
-        self.maxVelocity = 15
+        self.maxVelocity = 15.0
     
     def update(self) -> None:
         super().update()
@@ -532,28 +549,31 @@ class Player(Unit):
         if self.y > SCREENSIZE[1] : self.y = SCREENSIZE[1]
         for item in self.gottenItem:
             Board.msgQueue.push(Message("server", 'playsound', {"sound": "itemget"}))
+            w = self.weapon
             if item == ItemTypes.missile:
-                self.weapon.addWeapon(MissileLauncher(self.race))
-                self.weapon.removeAll(RocketLauncher)
+                w.removeAll(MissileLauncher)
+                w.addWeapon(MissileLauncher(self.race))
+                w.removeAll(RocketLauncher)
             if item == ItemTypes.rocket:
-                self.weapon.addWeapon(RocketLauncher(self.race))
-                self.weapon.removeAll(MissileLauncher)
+                w.removeAll(RocketLauncher)
+                w.addWeapon(RocketLauncher(self.race))
+                w.removeAll(MissileLauncher)
             if item == ItemTypes.shotgun:
-                if self.weapon.has(Shotgun) == False:
-                    self.weapon.removeAll(LazerGun)
-                    self.weapon.addWeapon(Shotgun(self.race))
+                if w.has(Shotgun) == False:
+                    w.removeAll(LazerGun)
+                    w.addWeapon(Shotgun(self.race))
                 else:
-                    self.weapon.upgrade(Shotgun)
+                    w.upgrade(Shotgun)
             if item == ItemTypes.lazer:
-                if self.weapon.has(LazerGun) == False:
-                    self.weapon.removeAll(Shotgun)
-                    self.weapon.addWeapon(LazerGun(self.race))
+                if w.has(LazerGun) == False:
+                    w.removeAll(Shotgun)
+                    w.addWeapon(LazerGun(self.race))
                 else:
-                    self.weapon.upgrade(LazerGun)
+                    w.upgrade(LazerGun)
             if item == ItemTypes.super:
                 for _ in range(5):
-                    self.weapon.upgrade(LazerGun)
-                    self.weapon.upgrade(Shotgun)
+                    w.upgrade(LazerGun)
+                    w.upgrade(Shotgun)
             if item == ItemTypes.magabomb:
                 self.magabombQuantity += 1
                 self.gottenItem.remove(item)
@@ -562,37 +582,37 @@ class Player(Unit):
                 self.gottenItem.remove(item)
             self.inventory.append(item)
         self.gottenItem.clear()
-        if self.weapon is not None:
-            if Keys.space in self.pressedKeyList:
-                self.weapon.isShooting = True
-            else:
-                if self.weapon.isShooting == True:
-                    self.weapon.isShooting = False
+        w = self.weapon
+        if Keys.space in self.pressedKeyList:
+            w.isShooting = True
+        else:
+            if w.isShooting == True:
+                w.isShooting = False
 
 class EnemyBuilder:
     def __init__(self,
-                 health = 100,
-                 image = 'en',
-                 weapon = None,
-                 velocity = Vector(0, 0),
-                 acceleration = Vector(0, 0),
-                 boundingBox = None,
-                 targetPos = None,
-                 maxVelocity = None,
-                 velocityMultiplier = 0.9,
-                 inventory: list[int] = []
+                 health: float = 100,
+                 image: str | Images = 'en',
+                 weapon: list[str] | None = None,
+                 velocity: Vector = Vector(0, 0),
+                 acceleration: Vector = Vector(0, 0),
+                 boundingBox: BoundingBox | None = None,
+                 targetPos: list[int] | None = None,
+                 maxVelocity: float | None = None,
+                 velocityMultiplier: float = 0.9,
+                 inventory: list[int] | None = None
                  ) -> None:
         self.enemy = Enemy()
         self.enemy.maxVelocity = maxVelocity
         self.enemy.velocityMultiplier = velocityMultiplier
         self.enemy.health = health
-        self.enemy.image = Images(image)
+        self.enemy.image = Images(image) if isinstance(image, str) else image
         self.enemy.velocity = velocity
         self.enemy.targetPos = targetPos
         self.enemy.acceleration = acceleration
         self.enemy.boundingBox = boundingBox
-        self.enemy.inventory = [ItemTypes(item) for item in inventory]
-        self.enemy.weapon = WeaponGroup(*[createInstanceFromClassname(weapon[i], {'shooterRace': Race.enemy}) for i in range(len(weapon))]) if weapon is not None else None
+        self.enemy.inventory = [ItemTypes(item) for item in (inventory or [])]
+        self.enemy.weapon = WeaponGroup(*[createInstanceFromClassname(weapon[i], {'shooterRace': Race.enemy}) for i in range(len(weapon))]) if weapon is not None else WeaponGroup()
     
     def build(self) -> Enemy:
         return self.enemy
@@ -610,12 +630,12 @@ class Board:
     def increaseId(self) -> None:
         self.currId += 1
     
-    def nearestPlayer(self, x, y) -> Player:
+    def nearestPlayer(self, x: float, y: float) -> Player | None:
         if len(self.players) == 0:
             return None
         return min(self.players, key=lambda p: (p.x - x)**2 + (p.y - y)**2)
     
-    def nearestUnit(self, x, y, race: Race) -> Unit:
+    def nearestUnit(self, x: float, y: float, race: Race) -> Unit | None:
         unitList = []
         for unit in self.units:
             if unit.race == race:
@@ -637,27 +657,32 @@ class Board:
     
     def addUnit(self, unit: Entity, type: str) -> None:
         if type == 'unit':
-            unit.x = random.randint(0, SCREENSIZE[0])
-            self.units.append(unit)
+            if isinstance(unit, Unit):
+                unit.x = random.randint(0, SCREENSIZE[0])
+            else:
+                unit.x = random.randint(0, SCREENSIZE[0])
+            self.units.append(unit)  # type: ignore[arg-type]
             self.increaseId()
             unit.id = self.currId
-        elif type == 'projectile':
+        elif type == 'projectile' and isinstance(unit, Projectile):
             self.projectiles.append(unit)
             self.increaseId()
             unit.id = self.currId
     
-    def getScreenObjects(self) -> list:
-        retList = []
+    def getScreenObjects(self) -> list[dict[str, Any]]:
+        retList: list[dict[str, Any]] = []
         for obj in self.objects:
             for item in obj:
-                appDict = {
+                if item.image is None:
+                    continue
+                appDict: dict[str, Any] = {
                     'id': item.id,
                     'x': item.x,
                     'y': item.y,
                     'rotation': item.rotation,
                     'image': item.image.value,
                     } 
-                if type(item) == Player:
+                if isinstance(item, Player):
                     appDict['health'] = item.health
                     appDict['isReady'] = item.isReady
                     appDict['player_id'] = item.player_id
@@ -689,7 +714,7 @@ class Board:
                    item.y < disappearAera[1] or\
                    item.y > disappearAera[3]:
                     item.isAlive = False
-                if hasattr(item, 'isExploding') and item.isExploding:
+                if isinstance(item, Magabomb) and item.isExploding:
                     for i in self.units:
                         i.isAlive = False
                     for i in self.projectiles:
@@ -697,7 +722,7 @@ class Board:
                     self.projectiles.remove(item)
                     self.msgQueue.push(self.generateSoundMessage(Sounds.nuclear_missile_explode))
                     break
-                if hasattr(item, 'weapon') and item.weapon is not None:
+                if isinstance(item, Unit):
                     if item.weapon.isShooting:
                         bullets = item.weapon.shoot(item.x, item.y)
                         for bullet in bullets:
@@ -710,14 +735,14 @@ class Board:
                                             bullet.chooseTarget = False
                                     else:
                                         bullet.chooseTarget = False
-                                if hasattr(bullet, 'target'):
+                                if isinstance(bullet, (Missile, Rocket)):
                                     if bullet.shooterRace == Race.enemy:
                                         bullet.target = self.nearestPlayer(bullet.x, bullet.y)
                                     else:
                                         race = Race.enemy
                                         bullet.target = self.nearestUnit(bullet.x, bullet.y, race)
                                 self.addUnit(bullet, 'projectile')
-                if hasattr(item, 'isThrowingMagabomb') and item.isThrowingMagabomb == True:
+                if isinstance(item, Player) and item.isThrowingMagabomb == True:
                     item.isThrowingMagabomb = False
                     magabomb = Magabomb()
                     magabomb.x = item.x
@@ -726,13 +751,13 @@ class Board:
                     self.msgQueue.push(self.generateSoundMessage(Sounds.nuclear_missile_shoot))
                 self.checkCollision(item)
                 if item.isAlive == False:
-                    if hasattr(item, 'inventory'):
+                    if isinstance(item, Unit):
                         for itemType in item.inventory:
                             itemUnit = Item(itemType)
                             itemUnit.x = item.x
                             itemUnit.y = item.y
                             self.addUnit(itemUnit, 'unit')
-                    obj.remove(item)
+                    obj.remove(item)  # type: ignore[arg-type]
                     if isinstance(item, Unit):
                         self.msgQueue.push(self.generateSoundMessage(f"explode{str(random.randint(1, 5))}"))
                     del item
@@ -756,9 +781,9 @@ class Level:
         self.totalFlags = totalFlags
         self.waitLoaded = False
         self.isFinished = False
-        self.flags: list[Flag] = [None for _ in range(totalFlags)]
-        for i in range(len(self.flags)):
-            self.flags[i] = Flag(**flags[i])
+        self.flags: list[Flag] = []
+        for i in range(totalFlags):
+            self.flags.append(Flag(**flags[i]))
         for item in drops:
             flag = random.choice(self.flags)
             flag.drops.append(item)
@@ -770,7 +795,7 @@ class Level:
             return
         self.flags[self.currFlagIndex].isFinished = False
     
-    def getCurrFlag(self) -> Flag:
+    def getCurrFlag(self) -> Flag | None:
         if self.currFlagIndex == -1 or self.currFlagIndex >= self.totalFlags:
             return None
         else:
@@ -783,14 +808,17 @@ class Level:
         return self.flags[self.currFlagIndex]
 
 class LevelLoader:
-    def __init__(self, path = '.\\levels') -> None:
+    def __init__(self, path: str = '.\\levels') -> None:
         self.currLevel = -1
         self.path = path
         self.levelList = os.listdir(path)
         self.totalLevel = len(self.levelList)
         self.isFinished = False
         self.levelData: list[Level] = []
-        self.standardTypeList = configuration.enemyTypes.copy()
+        if hasattr(configuration, 'enemyTypes'):
+            self.standardTypeList = configuration.enemyTypes.copy()
+        else:
+            self.standardTypeList = {}
     
     def createAttr(self) -> None:
         unitTypes = list(self.standardTypeList.keys())
@@ -823,7 +851,7 @@ class LevelLoader:
             self.isFinished = True
             self.currLevel = 147
     
-    def getCurrLevel(self) -> Level:
+    def getCurrLevel(self) -> Level | None:
         if self.currLevel == -1:
             return None
         if self.currLevel >= self.totalLevel:
@@ -843,12 +871,12 @@ class LevelLoader:
         else:
             return self.levelData[self.currLevel].isFinished
     
-    def loadLevel(self) -> Level:
+    def loadLevel(self) -> Level | None:
         self.nextLevel()
         if self.isFinished == True:
             return None
         if self.currLevel == 147:
-            return 
+            return None
         return self.levelData[self.currLevel]
 
 class Game:
@@ -934,8 +962,10 @@ class Game:
                         self.addFlagUnit(flag)
             else:
                 level = self.levelLoader.getCurrLevel()
+                if level is None:
+                    return
                 flag = level.loadFlag()
-                if flag == None:
+                if flag is None:
                     return
                 elif flag.finishCondition == FlagFinishCondition.waitForTime:
                     self.addFlagUnit(flag)
@@ -951,7 +981,7 @@ class WebSocketServer:
     def __init__(self, host="localhost", port=8765) -> None:
         self.host = host
         self.port = port
-        self.clients: set[websockets.ClientConnection] = set()  # 存储所有连接的客户端
+        self.clients: set[websockets.ServerConnection] = set()
         self.game = Game(self.messageQueue)
         self.frame_duration = 1.0 / gametick
 
@@ -974,9 +1004,10 @@ class WebSocketServer:
         self.game.board.addPlayer(player)
         return player.player_id
 
-    async def handle_client(self, websocket: websockets.ClientConnection) -> None:
+    async def handle_client(self, websocket: websockets.ServerConnection) -> None:
         # 新的客户端连接
         self.clients.add(websocket)
+        pid: int = -1
         try:
             async for message in websocket:
                 #print(f"收到消息: {message}")

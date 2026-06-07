@@ -19,12 +19,14 @@ def writeSettings() -> None:
 
 def getCurrIp() -> str:
     ip = "127.0.0.1"
+    s: socket.socket | None = None
     try:
-        s = socket.socket(socket.AF_INET,socket.SOCK_DGRAM)
-        s.connect(('8.8.8.8',80))
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(('8.8.8.8', 80))
         ip = s.getsockname()[0]
     finally:
-        s.close()
+        if s is not None:
+            s.close()
     return ip
 
 def singlePlayer() -> None:
@@ -52,7 +54,7 @@ def multiPlayer() -> bool:
 
 tk = Tk.Tk()
 tk.title("Gameguide")
-tk.resizable(0, 0)
+tk.resizable(False, False)
 
 ttk.Label(tk, text="Airwar Game Guide",justify='center').grid(row=0,column=0,columnspan=999)
 ttk.Button(tk, text="Single Player",command=singlePlayer).grid(row=1,column=0)

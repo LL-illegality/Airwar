@@ -6,201 +6,128 @@ import guide
 import data
 import sys
 import threading
+from typing import Any
 from const import *
 import pygame
-from server import *
+from server import *  # type: ignore[reportGeneralTypeIssues]
 import client
+import tutorial
 
 '''developed by LL'''
 
 TITLE = "Airwar"
-WIDTH = SCREENSIZE[0]
-HEIGHT = SCREENSIZE[1] + 64
-VERSION = 'Ver. 1.0.2'
-gamemode = GameMode.single
-hasJoystick = False
-lastJoyAxis = [0, 0]
-game = None
-websocket = None
-waitTime = 0
+WIDTH: int = SCREENSIZE[0]
+HEIGHT: int = SCREENSIZE[1] + 64
+VERSION: str = 'Ver. 1.1.2'
+gamemode: GameMode = GameMode.single
+hasJoystick: bool = False
+lastJoyAxis: list[float] = [0.0, 0.0]
+game: Game | None = None
+websocket: client.Client | client.SinglePlayerClient | None = None
 
 class ImageLoader:
     def __init__(self) -> None:
         self.dataList: list = []
         self.drawTriangle = False
-        self.awaitingSurfaceList: list[pygame.Surface] = []
         self.levelInfo: list[pygame.Surface] = []
         self.titleInfo: list[dict] = []
         self.operationText: dict = keyBoardOperationTexts
+        self.prevEntities: dict[int, dict] = {}
+        self.currEntities: dict[int, dict] = {}
+        self.lastUpdateTime: float = 0.0
+        self.tutorialManager: tutorial.TutorialManager | None = None
     
     async def getData(self) -> None:
         global websocket
-        response = await websocket.sendMessage(Message(websocket.player_id, "get", {}))
-        self.dataList = response['content']['objects']
+        if websocket is not None:
+            response = await websocket.sendMessage(Message(str(websocket.player_id), "get", {}))
+            if response is not None and isinstance(response, dict):
+                content = response.get('content', {})
+                obj_list = content.get('objects', [])
+                if isinstance(obj_list, list):
+                    self.dataList = obj_list
     
-    def setTitle(self, *args) -> None:
-        content = websocket.resopnse['content']
-        self.titleInfo.clear()
-        self.titleInfo.append({"title": fontChinese.render(str(content['title']), True, (19, 19, 19)), "duration": content['duration'], 'delay': content['duration']})
-
+    def onScreenInfo(self, *args: Any) -> None:
+        global websocket
+        if websocket is not None and websocket.resopnse is not None:
+            content = websocket.resopnse.get('content', {})
+            dataList = content.get('objects', [])
+            self.prevEntities = self.currEntities.copy()
+            self.currEntities = {d['id']: d for d in dataList}
+            self.lastUpdateTime = time.time()
     
-    def setLevelInfo(self, *args) -> None:
-        self.levelInfo = []
-        self.levelInfo.append(fontChinese.render(str(websocket.resopnse['content']['level']), True, (19, 19, 19)))
+    def setTitle(self, *args: Any) -> None:
+        global websocket
+        if websocket is not None and websocket.resopnse is not None:
+            content = websocket.resopnse['content']
+            self.titleInfo.clear()
+            self.titleInfo.append({"title": fontChinese.render(str(content['title']), True, (19, 19, 19)), "duration": content['duration'], 'delay': content['duration']})
     
-    def setTutorial(self, *args) -> None:
-        global waitTime
-        if websocket != None:
-            data = websocket.resopnse['content']['step']
-            playerKeys: list[int] = websocket.resopnse['content']['playerKeys']
-            if data == 1:
-                self.awaitingSurfaceList.append(font.render("----------Airwar----------", True, (19, 19, 19)))
-                waitTime = 5 * 60
-            if data == 2:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("欢迎来到Airwar新手教程", True, (19, 19, 19)))
-                isBusy = pygame.mixer.music.get_busy()
-                if isBusy == False:
-                    pygame.mixer.music.stop()
-                    pygame.mixer.music.unload()
-                pygame.mixer.music.load(musicMap.music[Music("tutorial")])
-                pygame.mixer.music.play(-1)
-                waitTime = 3 * 60
-            if data == 3:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render(f"使用{self.operationText["move"]}来控制飞机移动", True, (19, 19, 19)))
-                waitTime = 10 * 60
-            if data == 4:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render(f"按下{self.operationText['shoot']}来发射子弹", True, (19, 19, 19)))
-                waitTime = 3 * 60
-            if data == 5:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render(f"按下{self.operationText['drawMarker']}可在自身下方绘制标记", True, (19, 19, 19)))
-                waitTime = 3 * 60
-            if data == 6:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("标记可在多人游戏中帮助辨别自己的位置", True, (19, 19, 19)))
-                waitTime = 3 * 60
-            if data == 7:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render(f"长按{self.operationText['prepare']}进入准备状态", True, (19, 19, 19)))
-                waitTime = 3 * 60
-            if data == 8:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("当所有玩家都进入准备状态后，游戏开始", True, (19, 19, 19)))
-                waitTime = 3 * 60
-            if data == 9:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("敌人出现了，试着移动并击杀敌人", True, (19, 19, 19)))
-                waitTime = 2147483647
-            if data == 10:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("很好", True, (19, 19, 19)))
-                waitTime = 2 * 60
-            if data == 11:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("击杀敌人后可能会掉落道具", True, (19, 19, 19)))
-                waitTime = 2 * 60
-            if data == 12:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("试着再次击杀敌人吧", True, (19, 19, 19)))
-                waitTime = 2147483647
-            if data == 13:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("不同的道具有不同的效果", True, (19, 19, 19)))
-                waitTime = 2 * 60
-            if data == 14:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("可以升级武器，回复血量，或者更换武器等等", True, (19, 19, 19)))
-                waitTime = 2 * 60
-            if data == 15:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("试着击杀敌人并收集道具吧", True, (19, 19, 19)))
-                waitTime = 2147483647
-            if data == 16:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("当敌人数量过多无法解决时", True, (19, 19, 19)))
-                waitTime = 2 * 60
-            if data == 17:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("若右下角有核弹图标", True, (19, 19, 19)))
-                waitTime = 2 * 60
-            if data == 18:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render(f"则可以按下{self.operationText['nuclear']}使用核弹", True, (19, 19, 19)))
-                waitTime = 2 * 60
-            if data == 19:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("核弹可以一次性消灭所有敌人", True, (19, 19, 19)))
-                waitTime = 2 * 60
-            if data == 20:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("使用核弹消灭敌人吧", True, (19, 19, 19)))
-                waitTime = 2147483647
-            if data == 21:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("很好，你已经学会了所有技能了", True, (19, 19, 19)))
-                waitTime = 3 * 60
-            if data == 22:
-                self.awaitingSurfaceList.clear()
-                self.awaitingSurfaceList.append(fontChinese.render("教程结束", True, (19, 19, 19)))
-                waitTime = 3 * 60
-            if data == 23:
-                sys.exit()
-            pygame.mixer.Sound.play(soundMap.sounds[Sounds.transmission])
+    def setLevelInfo(self, *args: Any) -> None:
+        global websocket
+        if websocket is not None and websocket.resopnse is not None:
+            self.levelInfo = []
+            self.levelInfo.append(fontChinese.render(str(websocket.resopnse['content']['level']), True, (19, 19, 19)))
     
-    def draw_(self, *args) -> None:
+    def draw_(self, *args: Any) -> None:
+        global websocket
         #asyncio.run(self.getData())
         screen.fill((230, 230, 230))
         versionText = font.render(VERSION, True, (19, 19, 19))
         rect = versionText.get_rect()
-        rect.topright = (WIDTH-8, 8)
+        rect.topright = (WIDTH - 8, 8)
         screen.blit(versionText, rect)
         for titleDict in self.titleInfo:
             title: pygame.Surface = titleDict['title']
             rect = title.get_rect()
-            rect.center = (WIDTH/2, HEIGHT/4)
+            rect.center = (WIDTH // 2, HEIGHT // 4)
             delay = titleDict['delay']
             if delay <= 1 * gametick:
-                title.set_alpha(delay / 1 * gametick)
+                title.set_alpha(int(delay / (1 * gametick) * 255))
             screen.blit(title, rect)
             titleDict['delay'] -= 1
             if titleDict['delay'] <= 0:
                 self.titleInfo.remove(titleDict)
-        for surface in self.awaitingSurfaceList:
-            rect = surface.get_rect()
-            rect.center = (WIDTH/2, HEIGHT/3)
-            screen.blit(surface, rect)
+        if self.tutorialManager is not None:
+            for surface in self.tutorialManager.getAwaitingSurfaceList():
+                rect = surface.get_rect()
+                rect.center = (WIDTH // 2, HEIGHT // 3)
+                screen.blit(surface, rect)
         if len(self.titleInfo) == 0:
             for info in self.levelInfo:
                 rect = info.get_rect()
-                rect.midtop = (WIDTH/2, 8)
+                rect.midtop = (WIDTH // 2, 8)
                 screen.blit(info, rect)
-        if websocket != None:
-            self.dataList = websocket.resopnse['content']['objects']
-            for data in self.dataList:
+        if websocket is not None:
+            alpha = 0.0
+            if self.lastUpdateTime > 0:
+                alpha = min(1.0, (time.time() - self.lastUpdateTime) * gametick)
+            for data in self.currEntities.values():
+                prev = self.prevEntities.get(data['id'], data)
+                drawX = prev['x'] + (data['x'] - prev['x']) * alpha
+                drawY = prev['y'] + (data['y'] - prev['y']) * alpha
+                drawRotation = prev['rotation'] + (data['rotation'] - prev['rotation']) * alpha
                 image = imageMap.images[Images(data['image'])]
-                image = pygame.transform.rotate(image, -data['rotation'])
+                image = pygame.transform.rotate(image, -drawRotation)
                 rect = image.get_rect()
-                rect.center = (data['x'], data['y'])
+                rect.center = (int(drawX), int(drawY))
                 screen.blit(image, rect)
                 if 'isReady' in data:
                     if data['isReady'] == True and ResourcesLoader.currGameState == GameState.mainMenu:
                         tick = imageMap.images[Images.ready]
                         rect = tick.get_rect()
-                        rect.center = (data['x'], data['y'] - 48)
+                        rect.center = (int(drawX), int(drawY - 48))
                         screen.blit(tick, rect)
                 if 'name' in data:
                     name = littleFont.render(data['name'], True, (19, 19, 19))
                     rect = name.get_rect()
-                    rect.center = (data['x'], data['y'] + 32)
+                    rect.center = (int(drawX), int(drawY + 32))
                     screen.blit(name, rect)
                 if 'player_id' in data:
                     try:
                         if data['player_id'] == websocket.player_id:
                             if self.drawTriangle == True:
-                                pygame.draw.polygon(screen, (0, 192, 0), [(data['x'], data['y'] + 24), (data['x'] - 4, data['y'] + (12*1.732)), (data['x'] + 4, data['y'] + (12*1.732))])
+                                pygame.draw.polygon(screen, (0, 192, 0), [(int(drawX), int(drawY + 24)), (int(drawX - 4), int(drawY + (12*1.732))), (int(drawX + 4), int(drawY + (12*1.732)))])
                             stateBar = pygame.Surface((WIDTH, 64))
                             stateBar.fill((192, 192, 192))
                             stateBar.blit(font.render(f"Player {data['name']}", True, (19, 19, 19)), (0, 4))
@@ -218,10 +145,11 @@ class ImageLoader:
 
 class SoundLoader:
     def __init__(self) -> None:
-        self.soundData = ''
+        self.soundData: str = ''
     
-    def play(self, *args) -> None:
-        if websocket != None:
+    def play(self, *args: Any) -> None:
+        global websocket
+        if websocket is not None and websocket.resopnse is not None:
             self.soundData = websocket.resopnse['content']['sound']
             self.play_once(self.soundData)
 
@@ -231,11 +159,12 @@ class SoundLoader:
 class MusicLoader:
     def __init__(self) -> None:
         self.data: int = 0
-        self.msc = None
-        self.historyData = None
+        self.msc: MusicIntro | None = None
+        self.historyData: int | None = None
 
-    def play(self, *args) -> None:
-        if websocket != None:
+    def play(self, *args: Any) -> None:
+        global websocket
+        if websocket is not None and websocket.resopnse is not None:
             self.data = websocket.resopnse['content']['state']
             if self.data == self.historyData:
                 return
@@ -261,24 +190,23 @@ class MusicLoader:
                 pygame.mixer.music.play(-1)
 
 class ResourcesLoader:
-    currGameState = GameState.mainMenu
+    currGameState: GameState = GameState.mainMenu
     def __init__(self) -> None:
         self.imageLoader = ImageLoader()
         self.soundLoader = SoundLoader()
         self.musicLoader = MusicLoader()
         if hasJoystick:
             self.imageLoader.operationText = joyStickOperationTexts
-        self.processMappingTable: dict[str, callable | None] = {
-            "screen_info": self.imageLoader.draw_,
+        self.processMappingTable: dict[str, Any] = {
+            "screen_info": self.imageLoader.onScreenInfo,
             "game_state_changed": self.on_gamestate_changed,
-            "setTutorial": self.imageLoader.setTutorial,
             "playsound": self.soundLoader.play,
             "load_level": self.imageLoader.setLevelInfo,
             "set_title": self.imageLoader.setTitle,
         }
     
     def process(self, responseMessage: Message) -> None:
-        if responseMessage.type in self.processMappingTable.keys():
+        if responseMessage.type in self.processMappingTable:
             self.processMappingTable[responseMessage.type](responseMessage)
     
     def on_gamestate_changed(self, responseMessage: Message) -> None:
@@ -299,6 +227,8 @@ if guide.launchArg["mode"] == "single":
     game = Game(websocket.msgQueue)
     websocket.game = game
     websocket.newPlayer()
+    if game is not None and game.board.players:
+        game.board.players[0].isReady = True
 elif guide.launchArg["mode"] == "multi":
     gamemode = GameMode.multiJoin
     thread = threading.Thread(target=lambda:asyncio.run(launchClient()))
@@ -325,19 +255,25 @@ resourcesLoader = ResourcesLoader()
 def update() -> None:
     pass
 
-def on_key_down(key) -> None:
-    # pygame.key.key_code()
-    asyncio.run(websocket.sendMessage(Message(str(websocket.player_id), "keyDown", {"key": key})))
+def on_key_down(key: int) -> None:
+    global websocket
+    if websocket is not None:
+        asyncio.run(websocket.sendMessage(Message(str(websocket.player_id), "keyDown", {"key": key})))
 
-def on_key_up(key) -> None:
-    asyncio.run(websocket.sendMessage(Message(str(websocket.player_id), "keyUp", {"key": key})))
+def on_key_up(key: int) -> None:
+    global websocket
+    if websocket is not None:
+        asyncio.run(websocket.sendMessage(Message(str(websocket.player_id), "keyUp", {"key": key})))
 
-def on_joyaxis(axis, value) -> None:
-    global lastJoyAxis
-    asyncio.run(websocket.sendMessage(Message(str(websocket.player_id), "joyAxis", {"axis": axis, "value": value})))
+def on_joyaxis(axis: int, value: float) -> None:
+    global lastJoyAxis, websocket
+    if websocket is not None:
+        asyncio.run(websocket.sendMessage(Message(str(websocket.player_id), "joyAxis", {"axis": axis, "value": value})))
 
-def on_hatmotion(value) -> None:
-    asyncio.run(websocket.sendMessage(Message(str(websocket.player_id), "joyHat", {"value": value})))
+def on_hatmotion(value: list[int]) -> None:
+    global websocket
+    if websocket is not None:
+        asyncio.run(websocket.sendMessage(Message(str(websocket.player_id), "joyHat", {"value": value})))
 
 async def on_quit() -> None:
     if websocket != None:
@@ -345,7 +281,17 @@ async def on_quit() -> None:
     sys.exit()
 
 def mainloop() -> None:
-    global waitTime, hasJoystick, lastJoyAxis
+    global hasJoystick, lastJoyAxis
+    GAME_TICK_MS: float = 1000.0 / gametick
+    tickAccumulator: float = 0.0
+
+    tutorial_manager: tutorial.TutorialManager | None = None
+    if gamemode == GameMode.single and game is not None:
+        tutorial_manager = tutorial.TutorialManager(game, websocket.msgQueue, font, fontChinese) if websocket is not None else None
+        if tutorial_manager is not None:
+            resourcesLoader.imageLoader.tutorialManager = tutorial_manager
+            tutorial_manager.start()
+
     def process():
         if websocket != None:
             while websocket.msgQueue.isEmpty() == False:
@@ -357,6 +303,9 @@ def mainloop() -> None:
                         pass
                     resourcesLoader.process(Message(websocket.resopnse['sender'], websocket.resopnse['type'], websocket.resopnse['content']))
     while True:
+        dt = clock.tick(60)
+        tickAccumulator += dt
+
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 asyncio.run(on_quit())
@@ -379,7 +328,6 @@ def mainloop() -> None:
                     on_joyaxis(1, currJoyAxis[1])
                     lastJoyAxis[1] = currJoyAxis[1]
                 if event.type == pygame.JOYBUTTONDOWN:
-                    # print(event.button)
                     if event.button == 0:
                         on_key_down(pygame.K_c)
                         pygame.mixer.Sound.play(soundMap.sounds[Sounds.prepare])
@@ -398,21 +346,25 @@ def mainloop() -> None:
                     if event.button == 1:
                         resourcesLoader.imageLoader.drawTriangle = not resourcesLoader.imageLoader.drawTriangle
                 if event.type == pygame.JOYHATMOTION:
-                    # print(event.hat, event.value)
                     on_hatmotion(event.value)
-        if websocket != None:
-            if game != None:
-                websocket.update()
-                if waitTime == 0:
-                    websocket.setTutorialStep()
+
+        while tickAccumulator >= GAME_TICK_MS:
+            tickAccumulator -= GAME_TICK_MS
+            if isinstance(websocket, client.SinglePlayerClient) and game is not None:
+                if tutorial_manager is not None and tutorial_manager.isActive():
+                    tutorial_manager.update()
+                    websocket.update()
+                    for player in game.board.players:
+                        if player.health < 10:
+                            player.health = 10
                 else:
-                    waitTime -= 1
-                if waitTime > 2000000000:
-                    if websocket.isScreenEmpty():
-                        waitTime = 0
+                    websocket.update()
+                    game.detectLevelState()
+
         process()
+        if websocket is not None:
+            resourcesLoader.imageLoader.draw_()
         pygame.display.flip()
-        clock.tick(60)
 
 if guide.launchArg["mode"] == "none":
     sys.exit()

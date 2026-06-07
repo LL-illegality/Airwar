@@ -147,8 +147,11 @@ class Configuration:
             if cfg.endswith(".json"):
                 with open(f".\\configs\\{cfg}", "r") as f:
                     self.__dict__[cfg[:-5]] = json.load(f)
+    
+    def __getattr__(self, name: str) -> Any:
+        return self.__dict__.get(name)
 
-configuration = Configuration()
+configuration: Any = Configuration()
 imageMap = ImageMap()
 soundMap = SoundMap()
 musicMap = MusicMap()

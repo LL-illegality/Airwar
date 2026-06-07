@@ -2,7 +2,9 @@
     "en": {
         "health": 100,
         "image": "en",
-        "weapon": ["Shotgun_normal"],
+        "weapon": [
+            "Shotgun_normal"
+        ],
         "velocity": {
             "x": 0,
             "y": 15
@@ -15,14 +17,19 @@
     "enemy2": {
         "health": 50,
         "image": "enemy2",
-        "weapon": ["EnergyWeapon"],
+        "weapon": [
+            "EnergyWeapon"
+        ],
         "maxVelocity": 15,
         "velocityMultiplier": 0.8,
         "acceleration": {
             "x": 0,
             "y": 1
         },
-        "targetPos": [400, 300],
+        "targetPos": [
+            400,
+            300
+        ],
         "boundingBox": {
             "width": 40,
             "height": 40
@@ -81,7 +88,9 @@
     "weakling": {
         "health": 20,
         "image": "enemy",
-        "weapon": ["MissileLauncher_slow"],
+        "weapon": [
+            "MissileLauncher_slow"
+        ],
         "velocity": {
             "x": 0,
             "y": 3
@@ -90,12 +99,15 @@
             "width": 40,
             "height": 40
         },
-        "velocityMultiplier" : 0.9
+        "velocityMultiplier": 0.9
     },
     "unit1": {
         "health": 200,
         "image": "unit1",
-        "weapon": ["MissileLauncher_slow", "Shotgun"],
+        "weapon": [
+            "MissileLauncher_slow",
+            "Shotgun"
+        ],
         "velocity": {
             "x": 0,
             "y": 20
@@ -104,19 +116,22 @@
             "width": 50,
             "height": 55
         },
-        "velocityMultiplier" : 0.9
+        "velocityMultiplier": 0.9
     },
-    "Laser shooter":{
+    "Laser shooter": {
         "health": 80,
         "image": "rship",
-        "weapon": ["LazerGun"],
+        "weapon": [
+            "LazerGun"
+        ],
         "velocity": {
             "x": 0,
             "y": 3
-    },        "boundingBox": {
-        "width": 48,
-        "height": 48
-    },
-    "velocityMultiplier" : 0.9
+        },
+        "boundingBox": {
+            "width": 48,
+            "height": 48
+        },
+        "velocityMultiplier": 0.9
     }
 }
