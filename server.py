@@ -1,6 +1,8 @@
+from __future__ import annotations
 import asyncio
 import websockets
 import os
+from typing import Any
 from const import *
 from data import Vector, Message, Queue
 import random
@@ -8,6 +10,7 @@ import json
 import socket
 import time
 import math
+from collections import defaultdict
 
 def createInstanceFromClassname(classname: str, kwargs: dict) -> object:
     return globals()[classname](**kwargs)
@@ -29,6 +32,42 @@ class BoundingBox:
         luPoint = Point(x - (self.width/2), y - (self.height/2))
         rdPoint = Point(x + (self.width/2), y + (self.height/2))
         return (luPoint, rdPoint)
+
+class SpatialGrid:
+    cells: dict[tuple[int, int], set[Entity]]
+
+    def __init__(self) -> None:
+        self.cells = defaultdict(set)
+
+    def add(self, entity: Entity) -> None:
+        bb = entity.boundingBox
+        if bb is None:
+            return
+        left = int((entity.x - bb.width / 2) // CELL_SIZE)
+        right = int((entity.x + bb.width / 2) // CELL_SIZE)
+        top = int((entity.y - bb.height / 2) // CELL_SIZE)
+        bottom = int((entity.y + bb.height / 2) // CELL_SIZE)
+        for cx in range(left, right + 1):
+            for cy in range(top, bottom + 1):
+                self.cells[(cx, cy)].add(entity)
+
+    def get_nearby(self, entity: Entity) -> list[Entity]:
+        bb = entity.boundingBox
+        if bb is None:
+            return []
+        candidates: list[Entity] = []
+        left = int((entity.x - bb.width / 2) // CELL_SIZE)
+        right = int((entity.x + bb.width / 2) // CELL_SIZE)
+        top = int((entity.y - bb.height / 2) // CELL_SIZE)
+        bottom = int((entity.y + bb.height / 2) // CELL_SIZE)
+        seen: set[Entity] = set()
+        for cx in range(left, right + 1):
+            for cy in range(top, bottom + 1):
+                for e in self.cells.get((cx, cy), ()):
+                    if e is not entity and e not in seen:
+                        seen.add(e)
+                        candidates.append(e)
+        return candidates
 
 class Entity:
     def __init__(self, x: float = 0, y: float = 0, id: int = -1) -> None:
@@ -77,6 +116,9 @@ class Entity:
     def onCollision(self, other: "Entity") -> None:
         ...
     
+    def __hash__(self) -> int:
+        return hash(self.id)
+
     def __eq__(self, other: object) -> bool:
         if not isinstance(other, Entity):
             return NotImplemented
@@ -93,33 +135,53 @@ class Entity:
         return lu1.x < rd2.x and lu2.x < rd1.x and lu1.y < rd2.y and lu2.y < rd1.y
 
 class Item(Entity):
+    cycleMap = {
+    ItemTypes.shotgun: ItemTypes.lazer,
+    ItemTypes.lazer: ItemTypes.autocannon,
+    ItemTypes.autocannon: ItemTypes.shotgun,
+    ItemTypes.missile: ItemTypes.rocket,
+    ItemTypes.rocket: ItemTypes.missile,
+    }
     def __init__(self, item: ItemTypes):
         super().__init__()
         self.item = item
         self.image = itemMap[item]
         self.lifetime = 20 * gametick
         self.boundingBox = BoundingBox(24, 24)
-        self.velocity = Vector(random.randint(-5, 5), random.randint(-5, 15))
+        self.velocity = Vector(random.randint(-5, 5), random.randint(-5, 5))
         self.velocityMultiplier = 1
         self.redirectionDelay = 0
+        self.alpha = 255
+        self.typeCycleTimer = random.randint(3, 5) * gametick
     
     def update(self) -> None:
         super().update()
         self.lifetime -= 1
         if self.lifetime <= 0:
             self.isAlive = False
+            return
+        self.typeCycleTimer -= 1
+        if self.typeCycleTimer <= 0:
+            self.typeCycleTimer = random.randint(3, 5) * gametick
+            if self.item in self.cycleMap:
+                self.item = self.cycleMap[self.item]
+                self.image = itemMap[self.item]
         if self.redirectionDelay >= 0:
             if self.x <= 0 or self.x >= SCREENSIZE[0]:
                 self.velocity.x *= -1
-                self.redirectionDelay = 10
+                self.redirectionDelay = 15
             if self.y <= 0 or self.y >= SCREENSIZE[1]:
                 self.velocity.y *= -1
-                self.redirectionDelay = 10
+                self.redirectionDelay = 15
         else:
             self.redirectionDelay -= 1
+        if self.lifetime < 3 * gametick:
+            progress = self.lifetime / (3 * gametick)
+            blink_interval = max(2, int(progress * progress * 20))
+            self.alpha = 255 if (self.lifetime // blink_interval) % 2 == 0 else 50
     
     def onCollision(self, other: Entity) -> None:
-        if other.race == Race.player and isinstance(other, Player):
+        if other.race == Race.player and isinstance(other, Player) and other.isAlive:
             other.gottenItem.append(self.item)
             self.isAlive = False
 
@@ -131,6 +193,7 @@ class Projectile(Entity):
         self.shooterRace = Race.neutral
         self.boundingBox = BoundingBox(3, 8)
         self.chooseTarget = False
+        self.chooseTargetAngle = 360
         self.velocityMultiplier = 1
         self.target: "Entity | None" = None
     
@@ -162,6 +225,13 @@ class Lazer(Projectile):
         self.image = Images.lazer1
         self.boundingBox = BoundingBox(3, 8)
         self.velocity = Vector(0, -15)
+
+class AutocannonShells(Projectile):
+    def __init__(self, damage: float = 10, lifetime: float = 150) -> None:
+        super().__init__(damage, lifetime)
+        self.image = Images.autocannon12
+        self.boundingBox = BoundingBox(3, 7)
+        self.velocity = Vector(0, -20)
 
 class Missile(Projectile):
     def __init__(self, damage: float = 4, handedness: int = 1, lifetime: float = 150) -> None:
@@ -208,6 +278,23 @@ class EnergyBall(Projectile):
         self.boundingBox = BoundingBox(8, 8)
         self.velocity = Vector(0, 4)
 
+class EnergyBallEnhanced(Projectile):
+    def __init__(self, damage: float = 24, lifetime: float = 150) -> None:
+        super().__init__(damage, lifetime)
+        self.image = Images.energyball_enhanced
+        self.chooseTarget = True
+        self.boundingBox = BoundingBox(8, 8)
+        self.velocity = Vector(0, 6)
+
+class RocketEnemy(Projectile):
+    def __init__(self, damage: float = 12, lifetime: float = 150) -> None:
+        super().__init__(damage, lifetime)
+        self.image = Images.rocket_enemy
+        self.boundingBox = BoundingBox(8, 16)
+        self.velocity = Vector(0, 2)
+        self.acceleration = Vector(0, 0.7)
+        self.chooseTarget = True
+
 class Magabomb(Projectile):
     def __init__(self, damage: float = 10, lifetime: float = 2147483647) -> None:
         super().__init__(damage, lifetime)
@@ -236,13 +323,14 @@ class Weapon:
     def __init__(self, bullet: Projectile, fireRate: float = 10, shooterRace: Race = Race.neutral) -> None:
         self.bullet = bullet
         self.fireRate = fireRate
-        self.cooldown = 0
+        self.cooldown = random.randint(0, 100) / 100 * fireRate
         self.level = 1
-        self.maxLevel = 5
+        self.maxLevel = 10
         self.shooterRace = shooterRace
         self.sound = Sounds.shotgun_shoot
         self.playSound = True
         self.isShooting = False
+        self.jamType = WeaponJamType.none
     
     def shoot(self, x: float, y: float, times: int = 1) -> list[Projectile] | None:
         if self.isShooting and self.cooldown <= 0:
@@ -254,6 +342,12 @@ class Weapon:
                 bullet.y = y
                 retList.append(bullet)
             self.cooldown = self.fireRate
+            if self.jamType == WeaponJamType.shotgun:
+                self.cooldown += random.randint(-10, 10) / 100 * self.fireRate
+            if self.jamType == WeaponJamType.lazer:
+                if random.randint(0, 100) < 20:
+                    retList = []
+                    self.playSound = False
             if self.playSound:
                 Board.msgQueue.push(Message('server', 'playsound', {"sound": self.sound.value}))
             else:
@@ -321,21 +415,44 @@ class EnergyWeapon(Weapon):
         self.level= 0
         self.sound = Sounds.unprepare
         self.maxLevel = 0
+        self.jamType = WeaponJamType.shotgun
+
+class EnergyWeaponEnhanced(Weapon):
+    def __init__(self, shooterRace: Race) -> None:
+        super().__init__(EnergyBallEnhanced(), 3 * gametick, shooterRace)
+        self.level= 0
+        self.sound = Sounds.prepare
+        self.maxLevel = 0
+        self.jamType = WeaponJamType.shotgun
+
+class RocketLauncherEnemy(Weapon):
+    def __init__(self, shooterRace: Race) -> None:
+        super().__init__(RocketEnemy(), 3 * gametick, shooterRace)
+        self.level= 0
+        self.sound = Sounds.rocket_shoot
+        self.maxLevel = 0
+        self.jamType = WeaponJamType.shotgun
 
 class Shotgun(Weapon):
     bulletSpreadMap: dict[int, list[int | tuple[int, int]]] = {
         1: [0],
         2: [-2, 2],
-        3: [(-3, 0), 0, (3, 0)],
-        4: [(-3, 0), -2, 2, (3, 0)],
-        5: [(-5, 0), (-2, 0), 0, (2, 0), (5, 0)],
+        3: [-3, 0, 3],
+        4: [(-1, 0), -2, 2, (1, 0)],
+        5: [(-2, 0), (-1, 0), 0, (1, 0), (2, 0)],
+        6: [(-2, 0), (-1, 0), -3, 0, 3, (1, 0), (2, 0)],
+        7: [(-3, 0), (-2, 0), (-1, 2), (0, 2), (1, 2), (2, 0), (3, 0)],
+        8: [(-3, 0), (-2, 0), (-1, 2), -2, (0, 2), 2, (1, 2), (2, 0), (3, 0)],
+        9: [(-5, 0), (-3, 0), (-1, 2), -4, (0, 2), 4, (1, 2), (3, 0), (5, 0)],
+        10: [(-5, 0), (-3, 0), (-1, 2), -4, -2, (0, 2), 2, 4, (1, 2), (3, 0), (5, 0)],
     }
     def __init__(self, shooterRace: Race) -> None:
         super().__init__(Bullet(), 5, shooterRace)
         self.sound = Sounds.shotgun_shoot
+        self.jamType = WeaponJamType.shotgun
     
     def shoot(self, x: float, y: float, times: int = 1) -> list[Projectile] | None:
-        projs = super().shoot(x, y, self.level)
+        projs = super().shoot(x, y, len(self.bulletSpreadMap[self.level]))
         if projs is not None:
             for i in range(len(projs)):
                 proj = projs[i]
@@ -356,25 +473,33 @@ class LazerGun(Weapon):
         2: Images.lazer2,
         3: Images.lazer3,
         4: Images.lazer4,
-        5: Images.lazer5
+        5: Images.lazer5,
+        6: Images.lazer6,
+        7: Images.lazer7,
+        8: Images.lazer8,
+        9: Images.lazer9,
+        10: Images.lazer10
     }
     bulletDamageMap: dict[int, float] = {
         1: 1.5,
-        2: 4.5,
-        3: 7.5,
-        4: 12,
-        5: 13.5
+        2: 3,
+        3: 6.5,
+        4: 7.5,
+        5: 9,
+        6: 11,
+        7: 13.5,
+        8: 14,
+        9: 15,
+        10: 16
     }
     def __init__(self, shooterRace: Race) -> None:
         super().__init__(Lazer(), 1.5, shooterRace)
         self.sound = Sounds.lazer_shoot
+        self.jamType = WeaponJamType.lazer
     
     def shoot(self, x: float, y: float, times: int = 1) -> list[Projectile] | None:
         projs = super().shoot(x, y)
-        if random.randint(0, 100) < 20:
-            projs = None
-            self.playSound = False
-        if projs is not None:
+        if projs:
             proj = projs[0]
             proj.image = self.bulletImageMap[self.level]
             proj.damage = self.bulletDamageMap[self.level]
@@ -382,7 +507,59 @@ class LazerGun(Weapon):
             if self.shooterRace == Race.enemy:
                 proj.velocity.y = -proj.velocity.y
         return projs
+
+class Autocannon(Weapon):
+    bulletImageMap: dict[int, Images] = {
+        1: Images.autocannon12,
+        2: Images.autocannon12,
+        3: Images.autocannon34,
+        4: Images.autocannon34,
+        5: Images.autocannon56,
+        6: Images.autocannon56,
+        7: Images.autocannon7,
+        8: Images.autocannon8,
+        9: Images.autocannon9,
+        10: Images.autocannon10
+    }
+    bulletDamageMap: dict[int, float] = {
+        1: 10,
+        2: 15,
+        3: 18,
+        4: 18,
+        5: 23,
+        6: 23,
+        7: 30,
+        8: 40,
+        9: 50,
+        10: 60
+    }
+    bulletVelocityMap: dict[int, float] = {
+        1: -20,
+        2: -24,
+        3: -24,
+        4: -30,
+        5: -30,
+        6: -40,
+        7: -40,
+        8: -40,
+        9: -40,
+        10: -40
+    }
+    def __init__(self, shooterRace: Race) -> None:
+        super().__init__(AutocannonShells(), 10, shooterRace)
+        self.sound = Sounds.autocannon_shoot
+        self.jamType = WeaponJamType.shotgun
     
+    def shoot(self, x: float, y: float, times: int = 1) -> list[Projectile] | None:
+        projs = super().shoot(x, y, 1)
+        if projs is not None:
+            proj = projs[0]
+            proj.chooseTargetAngle = 120
+            proj.velocity.y = self.bulletVelocityMap[self.level]
+            proj.damage = self.bulletDamageMap[self.level]
+            proj.image = self.bulletImageMap[self.level]
+        return projs
+
 class MissileLauncher(Weapon):
     def __init__(self, shooterRace: Race) -> None:
         super().__init__(Missile(), 15, shooterRace)
@@ -547,39 +724,49 @@ class Player(Unit):
         if self.y < 0 : self.y = 0
         if self.x > SCREENSIZE[0] : self.x = SCREENSIZE[0]
         if self.y > SCREENSIZE[1] : self.y = SCREENSIZE[1]
-        for item in self.gottenItem:
+        for item in list(self.gottenItem):
             Board.msgQueue.push(Message("server", 'playsound', {"sound": "itemget"}))
             w = self.weapon
             if item == ItemTypes.missile:
                 w.removeAll(MissileLauncher)
                 w.addWeapon(MissileLauncher(self.race))
                 w.removeAll(RocketLauncher)
-            if item == ItemTypes.rocket:
+            elif item == ItemTypes.rocket:
                 w.removeAll(RocketLauncher)
                 w.addWeapon(RocketLauncher(self.race))
                 w.removeAll(MissileLauncher)
-            if item == ItemTypes.shotgun:
+            elif item == ItemTypes.shotgun:
                 if w.has(Shotgun) == False:
                     w.removeAll(LazerGun)
+                    w.removeAll(Autocannon)
                     w.addWeapon(Shotgun(self.race))
                 else:
                     w.upgrade(Shotgun)
-            if item == ItemTypes.lazer:
+            elif item == ItemTypes.lazer:
                 if w.has(LazerGun) == False:
                     w.removeAll(Shotgun)
+                    w.removeAll(Autocannon)
                     w.addWeapon(LazerGun(self.race))
                 else:
                     w.upgrade(LazerGun)
-            if item == ItemTypes.super:
-                for _ in range(5):
+            elif item == ItemTypes.autocannon:
+                if w.has(Autocannon) == False:
+                    w.removeAll(Shotgun)
+                    w.removeAll(LazerGun)
+                    w.addWeapon(Autocannon(self.race))
+                else:
+                    w.upgrade(Autocannon)
+            elif item == ItemTypes.super:
+                for _ in range(10):
                     w.upgrade(LazerGun)
                     w.upgrade(Shotgun)
-            if item == ItemTypes.magabomb:
+                    w.upgrade(Autocannon)
+            elif item == ItemTypes.magabomb:
                 self.magabombQuantity += 1
-                self.gottenItem.remove(item)
-            if item == ItemTypes.medic:
+                continue
+            elif item == ItemTypes.medic:
                 self.health = 100
-                self.gottenItem.remove(item)
+                continue
             self.inventory.append(item)
         self.gottenItem.clear()
         w = self.weapon
@@ -623,7 +810,7 @@ class Board:
         self.players: list[Player] = []
         self.units: list[Unit] = []
         self.projectiles: list[Projectile] = []
-        self.objects: list[list[Player] | list[Unit] | list[Projectile]] = [self.players, self.units, self.projectiles]
+        self.objects: list[list[Entity]] = [self.players, self.units, self.projectiles]  # type: ignore[arg-type]
         Board.msgQueue = msgQueue
         self.currId = -1
     
@@ -644,6 +831,27 @@ class Board:
             return None
         return min(unitList, key=lambda u: (u.x - x)**2 + (u.y - y)**2)
 
+    def nearestEnemyInCone(self, x: float, y: float, coneAngle: float, forwardDir: Vector, targetRace: Race) -> Unit | None:
+        candidates = [u for u in self.units if isinstance(u, Unit) and u.race == targetRace]
+        if not candidates:
+            return None
+        forwardAngle = ~forwardDir
+        halfAngle = coneAngle / 2.0
+        valid = []
+        for enemy in candidates:
+            toEnemy = Vector(enemy.x - x, enemy.y - y)
+            dist = (toEnemy.x**2 + toEnemy.y**2) ** 0.5
+            if dist == 0:
+                continue
+            enemyAngle = ~toEnemy
+            diff = abs(enemyAngle - forwardAngle) % 360
+            diff = min(diff, 360 - diff)
+            if diff <= halfAngle:
+                valid.append(enemy)
+        if not valid:
+            return None
+        return min(valid, key=lambda e: (e.x - x)**2 + (e.y - y)**2)
+
     def findPlayer(self, player_id: int) -> Player | None:
         for player in self.players:
             if player.player_id == player_id:
@@ -657,9 +865,7 @@ class Board:
     
     def addUnit(self, unit: Entity, type: str) -> None:
         if type == 'unit':
-            if isinstance(unit, Unit):
-                unit.x = random.randint(0, SCREENSIZE[0])
-            else:
+            if not isinstance(unit, Item):
                 unit.x = random.randint(0, SCREENSIZE[0])
             self.units.append(unit)  # type: ignore[arg-type]
             self.increaseId()
@@ -688,26 +894,37 @@ class Board:
                     appDict['player_id'] = item.player_id
                     appDict['name'] = item.name
                     appDict['magabombQuantity'] = item.magabombQuantity
+                if isinstance(item, Item):
+                    appDict['alpha'] = item.alpha
                 retList.append(appDict)
         return retList
     
     def isAllPlayerPrepared(self) -> bool:
-        return all(player.isReady for player in self.players)
+        return len(self.players) > 0 and all(player.isReady for player in self.players)
 
-    def checkCollision(self, item: Entity) -> None:
-        for obj in self.objects:
-            for other in obj:
+    def checkCollision(self, item: Entity, grid: SpatialGrid | None = None) -> None:
+        if grid is not None:
+            for other in grid.get_nearby(item):
                 if item != other and item & other:
                     item.onCollision(other)
+        else:
+            for obj in self.objects:
+                for other in obj:
+                    if item != other and item & other:
+                        item.onCollision(other)
     
-    def generateSoundMessage(self, sound: Sounds | str):
+    def generateSoundMessage(self, sound: Sounds | str) -> Message:
         if type(sound) == Sounds:
             sound = sound.value
         return Message('server', 'playsound', {"sound": sound})
     
     def update(self) -> None:
+        spatial = SpatialGrid()
         for obj in self.objects:
             for item in obj:
+                spatial.add(item)
+        for obj in self.objects:
+            for item in obj[:]:
                 item.update()
                 if item.x < disappearAera[0] or\
                    item.x > disappearAera[2] or\
@@ -715,11 +932,19 @@ class Board:
                    item.y > disappearAera[3]:
                     item.isAlive = False
                 if isinstance(item, Magabomb) and item.isExploding:
-                    for i in self.units:
-                        i.isAlive = False
-                    for i in self.projectiles:
-                        i.isAlive = False
-                    self.projectiles.remove(item)
+                    for i in self.units[:]:
+                        if isinstance(i, Unit):
+                            for itemType in i.inventory:
+                                itemUnit = Item(itemType)
+                                itemUnit.x = i.x
+                                itemUnit.y = i.y
+                                self.addUnit(itemUnit, 'unit')
+                            self.msgQueue.push(self.generateSoundMessage(f"explode{random.randint(1, 5)}"))
+                        self.units.remove(i)
+                        del i
+                    for i in self.projectiles[:]:
+                        self.projectiles.remove(i)
+                        del i
                     self.msgQueue.push(self.generateSoundMessage(Sounds.nuclear_missile_explode))
                     break
                 if isinstance(item, Unit):
@@ -727,11 +952,20 @@ class Board:
                         bullets = item.weapon.shoot(item.x, item.y)
                         for bullet in bullets:
                             if bullet is not None:
+                                if bullet.chooseTargetAngle < 360:
+                                    if bullet.shooterRace == Race.player:
+                                        target = self.nearestEnemyInCone(bullet.x, bullet.y, bullet.chooseTargetAngle, Vector(0, -1), Race.enemy)
+                                    else:
+                                        target = self.nearestEnemyInCone(bullet.x, bullet.y, bullet.chooseTargetAngle, Vector(0, 1), Race.player)
+                                    if target is not None:
+                                        bullet.faceToTarget(target, 'velocity')
+                                        bullet.faceToTarget(target, 'acceleration')
                                 if bullet.chooseTarget == True:
                                     if bullet.shooterRace == Race.enemy:
                                         target = self.nearestPlayer(bullet.x, bullet.y)
                                         if target is not None:
                                             bullet.faceToTarget(target, 'velocity')
+                                            bullet.faceToTarget(target, 'acceleration')
                                             bullet.chooseTarget = False
                                     else:
                                         bullet.chooseTarget = False
@@ -749,7 +983,11 @@ class Board:
                     magabomb.y = item.y
                     self.addUnit(magabomb, 'projectile')
                     self.msgQueue.push(self.generateSoundMessage(Sounds.nuclear_missile_shoot))
-                self.checkCollision(item)
+                for other in spatial.get_nearby(item):
+                    if item != other and item & other:
+                        item.onCollision(other)
+                if isinstance(item, Unit) and item.health <= 0:
+                    item.isAlive = False
                 if item.isAlive == False:
                     if isinstance(item, Unit):
                         for itemType in item.inventory:
@@ -757,7 +995,14 @@ class Board:
                             itemUnit.x = item.x
                             itemUnit.y = item.y
                             self.addUnit(itemUnit, 'unit')
-                    obj.remove(item)  # type: ignore[arg-type]
+                    if isinstance(item, Player):
+                        for itemType in item.gottenItem:
+                            itemUnit = Item(itemType)
+                            itemUnit.x = item.x
+                            itemUnit.y = item.y
+                            self.addUnit(itemUnit, 'unit')
+                        item.gottenItem.clear()
+                    obj.remove(item)
                     if isinstance(item, Unit):
                         self.msgQueue.push(self.generateSoundMessage(f"explode{str(random.randint(1, 5))}"))
                     del item
@@ -889,6 +1134,9 @@ class Game:
         self.msgQueue: Queue = queue
         self.board = Board(self.msgQueue)
         self.isPaused = False
+        self.pausePlayerId = -1
+        self.pausePlayerName = ''
+        self.pendingEnemies: list[tuple[Enemy, int]] = []
     
     def setWaitTime(self, time: int) -> None:
         self.waitTime = time
@@ -912,6 +1160,8 @@ class Game:
         objList = self.board.getScreenObjects()
         retDict =  {
             'objects': objList,
+            'isPaused': self.isPaused,
+            'pausePlayerName': self.pausePlayerName if self.isPaused else '',
         }
         retMsg = Message('server', 'screen_info', retDict)
         self.msgQueue.push(retMsg)
@@ -925,18 +1175,30 @@ class Game:
             unitWithDrop.inventory.append(ItemTypes(flag.drops[0]))
             flag.drops.pop(0)
         for unit in units:
-            self.board.addUnit(unit, 'unit')
+            delay = random.randint(0, int(1.5 * gametick))
+            self.pendingEnemies.append((unit, delay))
+
+    def _processPendingEnemies(self) -> None:
+        remaining: list[tuple[Enemy, int]] = []
+        for unit, delay in self.pendingEnemies:
+            if delay <= 0:
+                self.board.addUnit(unit, 'unit')
+            else:
+                remaining.append((unit, delay - 1))
+        self.pendingEnemies = remaining
     
     def detectLevelState(self) -> None:
+        if self.isPaused:
+            return
         if self.isWaitTimeOver() == False:
             pass
         else:
-            self.setWaitTime(2 * gametick)
+            self.setWaitTime(random.randint(2, 5) * gametick)
             enemyList = []
             for unit in self.board.units:
                 if unit.race == Race.enemy:
                     enemyList.append(unit)
-            if len(enemyList) == 0:
+            if len(enemyList) == 0 and len(self.pendingEnemies) == 0:
                 if self.currState == GameState.mainMenu:
                     if not self.board.isAllPlayerPrepared() or len(self.board.players) == 0:
                         return
@@ -949,7 +1211,7 @@ class Game:
                     self.currState = GameState.gameWin
                     self.msgQueue.push(Message('server', 'set_title', {'title': "You Win!", 'duration': 10 * gametick}))
                 elif level.waitLoaded == False:
-                    self.setWaitTime(random.randint(5, 15) * gametick)
+                    self.setWaitTime(random.randint(10, 20) * gametick)
                     self.currState = GameState.loadLevel
                     self.msgQueue.push(Message('server', 'load_level', {'level': level.name}))
                     self.msgQueue.push(Message('server', 'set_title', {'title': level.name, 'duration': 5 * gametick}))
@@ -961,6 +1223,8 @@ class Game:
                     else:
                         self.addFlagUnit(flag)
             else:
+                if len(self.pendingEnemies) > 0:
+                    return
                 level = self.levelLoader.getCurrLevel()
                 if level is None:
                     return
@@ -974,6 +1238,7 @@ class Game:
 
     def update(self) -> None:
         self.board.update()
+        self._processPendingEnemies()
         self.getObjects()
 
 class WebSocketServer:
@@ -1028,7 +1293,18 @@ class WebSocketServer:
                 if msg.type == 'keyDown':
                     player = self.game.board.findPlayer(int(msg.sender))
                     if player != None:
-                        player.pressedKeyList.append(msg.content['key'])
+                        if msg.content['key'] == Keys.p:
+                            if not self.game.isPaused:
+                                self.game.isPaused = True
+                                self.game.pausePlayerId = player.player_id
+                                self.game.pausePlayerName = player.name
+                            elif self.game.pausePlayerId == player.player_id:
+                                self.game.isPaused = False
+                                self.game.pausePlayerId = -1
+                                self.game.pausePlayerName = ''
+                            self.game.getObjects()
+                        else:
+                            player.pressedKeyList.append(msg.content['key'])
                 if msg.type == 'keyUp':
                     player = self.game.board.findPlayer(int(msg.sender))
                     if player != None:
@@ -1074,8 +1350,10 @@ class WebSocketServer:
                 start_time = time.perf_counter()
                 if self.game.isPaused == False:
                     self.game.update()
+                else:
+                    self.game.getObjects()
                 self.game.detectLevelState()
-                asyncio.gather(self.broadcast_game_state())
+                await self.broadcast_game_state()
                 end_time = time.perf_counter()
                 elapsed_time = end_time - start_time
                 sleep_time = self.frame_duration - elapsed_time
@@ -1083,12 +1361,10 @@ class WebSocketServer:
                     await asyncio.sleep(sleep_time)
 
     async def broadcast_game_state(self) -> None:
-        """向所有连接的客户端广播游戏状态"""
         if not self.clients:
-            print("没有客户端连接，无法发送消息")
             self.messageQueue.clear()
             return
-        disconnected_clients = set()
+        disconnected_clients: set[websockets.ServerConnection] = set()
         clients = self.clients.copy()
         while self.messageQueue.isEmpty() == False:
             msg = self.messageQueue.pop()
@@ -1097,8 +1373,6 @@ class WebSocketServer:
                     await client.send(str(msg))
                 except websockets.ConnectionClosed:
                     disconnected_clients.add(client)
-        #self.messageQueue.pop() if self.messageQueue.isEmpty() == False else None
-        # 清理已断开的客户端
         self.clients -= disconnected_clients
 
     async def start(self) -> None:

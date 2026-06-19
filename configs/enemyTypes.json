@@ -1,6 +1,6 @@
 {
     "en": {
-        "health": 100,
+        "health": 200,
         "image": "en",
         "weapon": [
             "Shotgun_normal"
@@ -15,7 +15,7 @@
         }
     },
     "enemy2": {
-        "health": 50,
+        "health": 100,
         "image": "enemy2",
         "weapon": [
             "EnergyWeapon"
@@ -36,7 +36,7 @@
         }
     },
     "test": {
-        "health": 100,
+        "health": 300,
         "image": "ca",
         "velocity": {
             "x": 0,
@@ -86,7 +86,7 @@
         ]
     },
     "weakling": {
-        "health": 20,
+        "health": 80,
         "image": "enemy",
         "weapon": [
             "MissileLauncher_slow"
@@ -102,7 +102,7 @@
         "velocityMultiplier": 0.9
     },
     "unit1": {
-        "health": 200,
+        "health": 400,
         "image": "unit1",
         "weapon": [
             "MissileLauncher_slow",
@@ -118,8 +118,8 @@
         },
         "velocityMultiplier": 0.9
     },
-    "Laser shooter": {
-        "health": 80,
+    "lazershooter": {
+        "health": 150,
         "image": "rship",
         "weapon": [
             "LazerGun"
@@ -133,5 +133,94 @@
             "height": 48
         },
         "velocityMultiplier": 0.9
+    },
+    "enemy3": {
+        "health": 200,
+        "image": "enemy3",
+        "weapon": [
+            "EnergyWeaponEnhanced"
+        ],
+        "velocityMultiplier": 0.8,
+        "acceleration": {
+            "x": 0,
+            "y": 1
+        },
+        "boundingBox": {
+            "width": 38,
+            "height": 23
+        }
+    },
+    "enemy4": {
+        "health": 200,
+        "image": "enemy4",
+        "weapon": [
+            "RocketLauncherEnemy"
+        ],
+        "velocityMultiplier": 0.8,
+        "velocity": {
+            "x": 0,
+            "y": 5
+        },
+        "boundingBox": {
+            "width": 64,
+            "height": 64
+        }
+    },
+    "enemy5": {
+        "health": 250,
+        "image": "enemy5",
+        "weapon": [
+            "RocketLauncherEnemy",
+            "LazerGun"
+        ],
+        "velocityMultiplier": 0.8,
+        "velocity": {
+            "x": 0,
+            "y": 2
+        },
+        "boundingBox": {
+            "width": 80,
+            "height": 80
+        }
+    },
+    "big1": {
+        "health": 650,
+        "image": "big1",
+        "weapon": [
+            "RocketLauncherEnemy",
+            "Shotgun",
+            "LazerGun",
+            "EnergyWeapon"
+        ],
+        "velocityMultiplier": 0.8,
+        "velocity": {
+            "x": 0,
+            "y": 20
+        },
+        "boundingBox": {
+            "width": 78,
+            "height": 78
+        }
+    },
+    "big2": {
+        "health": 800,
+        "image": "big2",
+        "weapon": [
+            "RocketLauncherEnemy",
+            "Shotgun",
+            "LazerGun",
+            "EnergyWeaponEnhanced",
+            "EnergyWeapon",
+            "MissileLauncher_slow"
+        ],
+        "velocityMultiplier": 0.8,
+        "acceleration": {
+            "x": 0,
+            "y": 1
+        },
+        "boundingBox": {
+            "width": 78,
+            "height": 78
+        }
     }
 }

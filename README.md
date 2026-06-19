@@ -24,6 +24,7 @@ Airwar采用python的`websockets`和`asyncio`库实现客户端和服务端的�
 - c: 长按进入准备状态
 - z: 在自身下方绘制标记
 - e: 使用核弹
+- p: 暂停游戏
 - space: 发射子弹
 
 ## 游戏内手柄操作
@@ -38,6 +39,7 @@ Airwar采用python的`websockets`和`asyncio`库实现客户端和服务端的�
 - 按钮2：在自身下方绘制标记
 - 按钮3：使用核弹
 - 按钮4：发射子弹
+- start：暂停游戏
 
 ## 游戏详情简介
 
@@ -229,15 +231,19 @@ class ItemTypes(Enum):
     rocket = 4 #火箭：添加火箭发射器并舍弃导弹发射器
     magabomb = 5 #核弹：增加核弹持有数量
     medic = 6 #血包：回复血量
+    autocannon = 7 #机炮：升级或将当前武器更换为机炮
 ```
 
 ### 武器类名
 
 - `Shotgun`：散弹枪，玩家的初始武器
 - `LazerGun`：激光
+- `Autocannon`：机炮
 - `MissileLauncher`：导弹发射器
 - `RocketLauncher`：火箭发射器
 - `EnergyWeapon`：能量武器，敌人使用
+- `EnergyWeaponEnhanced`：高级能量武器，敌人使用
 - `Shotgun_slow`：慢速的散弹枪，敌人使用
 - `Shotgun_normal`：中等的散弹枪，敌人使用
 - `MissileLauncher_slow`慢速的导弹发射器，敌人使用
+- `RocketLauncherEnemy`火箭发射器，敌人使用

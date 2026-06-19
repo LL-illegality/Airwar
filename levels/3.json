@@ -1,11 +1,10 @@
 {
     "name": "Level 3",
-    "totalFlags": 11,
+    "totalFlags": 13,
     "drops": [
         1,
         1,
         1,
-        1,
         2,
         2,
         2,
@@ -19,11 +18,15 @@
         0,
         0,
         0,
-        0,
         6,
         6,
         6,
-        6
+        6,
+        6,
+        6,
+        6,
+        7,
+        7
     ],
     "flags": [
         {
@@ -45,9 +48,9 @@
                 "en",
                 "en",
                 "en",
-                "Laser shooter",
-                "Laser shooter",
-                "Laser shooter"
+                "lazershooter",
+                "lazershooter",
+                "lazershooter"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
@@ -113,12 +116,12 @@
                 "en",
                 "en",
                 "en",
-                "Laser shooter",
-                "Laser shooter",
-                "Laser shooter",
-                "Laser shooter",
-                "Laser shooter",
-                "Laser shooter"
+                "lazershooter",
+                "lazershooter",
+                "lazershooter",
+                "lazershooter",
+                "lazershooter",
+                "lazershooter"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
@@ -127,11 +130,11 @@
             "unitTypeList": [
                 "en",
                 "en",
-                "test",
-                "test",
-                "test"
+                "enemy3",
+                "enemy4",
+                "enemy5"
             ],
-            "timeBeforeNext": 150,
+            "timeBeforeNext": 60,
             "finishCondition": 0
         },
         {
@@ -142,7 +145,7 @@
                 "weakling",
                 "weakling"
             ],
-            "timeBeforeNext": 150,
+            "timeBeforeNext": 60,
             "finishCondition": 0
         },
         {
@@ -157,10 +160,8 @@
         },
         {
             "unitTypeList": [
-                "weakling",
-                "Laser shooter",
-                "enemy2",
-                "enemy2"
+                "big1",
+                "big1"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
@@ -187,12 +188,51 @@
                 "en",
                 "en",
                 "en",
-                "Laser shooter",
-                "Laser shooter",
-                "Laser shooter",
-                "Laser shooter",
-                "Laser shooter",
-                "Laser shooter"
+                "lazershooter",
+                "lazershooter",
+                "lazershooter",
+                "lazershooter",
+                "lazershooter",
+                "lazershooter"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "en",
+                "unit1",
+                "unit1",
+                "weakling",
+                "weakling",
+                "weakling",
+                "weakling",
+                "enemy4",
+                "enemy4",
+                "enemy4",
+                "enemy5",
+                "enemy5",
+                "enemy5",
+                "enemy5",
+                "lazershooter",
+                "lazershooter",
+                "lazershooter",
+                "lazershooter",
+                "lazershooter",
+                "big2"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "big2"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1

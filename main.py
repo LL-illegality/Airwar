@@ -18,7 +18,7 @@ import tutorial
 TITLE = "Airwar"
 WIDTH: int = SCREENSIZE[0]
 HEIGHT: int = SCREENSIZE[1] + 64
-VERSION: str = 'Ver. 1.1.2'
+VERSION: str = 'Ver. 1.2.0'
 gamemode: GameMode = GameMode.single
 hasJoystick: bool = False
 lastJoyAxis: list[float] = [0.0, 0.0]
@@ -36,6 +36,8 @@ class ImageLoader:
         self.currEntities: dict[int, dict] = {}
         self.lastUpdateTime: float = 0.0
         self.tutorialManager: tutorial.TutorialManager | None = None
+        self.isPaused = False
+        self.pausePlayerName = ''
     
     async def getData(self) -> None:
         global websocket
@@ -55,6 +57,9 @@ class ImageLoader:
             self.prevEntities = self.currEntities.copy()
             self.currEntities = {d['id']: d for d in dataList}
             self.lastUpdateTime = time.time()
+            if 'isPaused' in content:
+                self.isPaused = content['isPaused']
+                self.pausePlayerName = content.get('pausePlayerName', '')
     
     def setTitle(self, *args: Any) -> None:
         global websocket
@@ -109,6 +114,8 @@ class ImageLoader:
                 drawRotation = prev['rotation'] + (data['rotation'] - prev['rotation']) * alpha
                 image = imageMap.images[Images(data['image'])]
                 image = pygame.transform.rotate(image, -drawRotation)
+                if 'alpha' in data:
+                    image.set_alpha(data['alpha'])
                 rect = image.get_rect()
                 rect.center = (int(drawX), int(drawY))
                 screen.blit(image, rect)
@@ -310,11 +317,17 @@ def mainloop() -> None:
             if event.type == pygame.QUIT:
                 asyncio.run(on_quit())
             elif event.type == pygame.KEYDOWN:
-                on_key_down(event.key)
+                if event.key == pygame.K_p and isinstance(websocket, client.SinglePlayerClient) and game is not None:
+                    game.isPaused = not game.isPaused
+                    resourcesLoader.imageLoader.isPaused = game.isPaused
+                    resourcesLoader.imageLoader.pausePlayerName = ''
+                else:
+                    on_key_down(event.key)
                 if event.key == pygame.K_c:
                     pygame.mixer.Sound.play(soundMap.sounds[Sounds.prepare])
             elif event.type == pygame.KEYUP:
-                on_key_up(event.key)
+                if event.key != pygame.K_p or not isinstance(websocket, client.SinglePlayerClient):
+                    on_key_up(event.key)
                 if event.key == pygame.K_c:
                     pygame.mixer.Sound.play(soundMap.sounds[Sounds.unprepare])
                 if event.key == pygame.K_z:
@@ -328,22 +341,29 @@ def mainloop() -> None:
                     on_joyaxis(1, currJoyAxis[1])
                     lastJoyAxis[1] = currJoyAxis[1]
                 if event.type == pygame.JOYBUTTONDOWN:
-                    if event.button == 0:
+                    if event.button == 7:
+                        if isinstance(websocket, client.SinglePlayerClient) and game is not None:
+                            game.isPaused = not game.isPaused
+                            resourcesLoader.imageLoader.isPaused = game.isPaused
+                            resourcesLoader.imageLoader.pausePlayerName = ''
+                        else:
+                            on_key_down(pygame.K_p)
+                    elif event.button == 0:
                         on_key_down(pygame.K_c)
                         pygame.mixer.Sound.play(soundMap.sounds[Sounds.prepare])
-                    if event.button == 1:
+                    elif event.button == 1:
                         on_key_down(pygame.K_z)
-                    if event.button == 2:
+                    elif event.button == 2:
                         on_key_down(pygame.K_e)
-                    if event.button == 3:
+                    elif event.button == 3:
                         on_key_down(pygame.K_SPACE)
                 if event.type == pygame.JOYBUTTONUP:
                     if event.button == 0:
                         on_key_up(pygame.K_c)
                         pygame.mixer.Sound.play(soundMap.sounds[Sounds.unprepare])
-                    if event.button == 3:
+                    elif event.button == 3:
                         on_key_up(pygame.K_SPACE)
-                    if event.button == 1:
+                    elif event.button == 1:
                         resourcesLoader.imageLoader.drawTriangle = not resourcesLoader.imageLoader.drawTriangle
                 if event.type == pygame.JOYHATMOTION:
                     on_hatmotion(event.value)
@@ -358,12 +378,24 @@ def mainloop() -> None:
                         if player.health < 10:
                             player.health = 10
                 else:
-                    websocket.update()
-                    game.detectLevelState()
+                    if not game.isPaused:
+                        websocket.update()
+                        game.detectLevelState()
 
         process()
         if websocket is not None:
             resourcesLoader.imageLoader.draw_()
+        if resourcesLoader.imageLoader.isPaused:
+            overlay = pygame.Surface((WIDTH, HEIGHT))
+            overlay.set_alpha(160)
+            overlay.fill((100, 100, 100))
+            screen.blit(overlay, (0, 0))
+            if resourcesLoader.imageLoader.pausePlayerName:
+                pauseText = fontChinese.render(f"{resourcesLoader.imageLoader.pausePlayerName}暂停了游戏", True, (255, 255, 255))
+            else:
+                pauseText = fontChinese.render("游戏暂停", True, (255, 255, 255))
+            rect = pauseText.get_rect(center=(WIDTH // 2, HEIGHT // 3))
+            screen.blit(pauseText, rect)
         pygame.display.flip()
 
 if guide.launchArg["mode"] == "none":

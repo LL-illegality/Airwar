@@ -4,6 +4,8 @@
     "drops": [
         0,
         1,
+        7,
+        6,
         6,
         2,
         4
@@ -32,14 +34,14 @@
         },
         {
             "unitTypeList": [
-                "enemy2"
+                "enemy3"
             ],
             "timeBeforeNext": 30,
             "finishCondition": 0
         },
         {
             "unitTypeList": [
-                "Laser shooter",
+                "lazershooter",
                 "test",
                 "test"
             ],
@@ -48,7 +50,7 @@
         },
         {
             "unitTypeList": [
-                "Laser shooter",
+                "lazershooter",
                 "en",
                 "test"
             ],
@@ -57,9 +59,9 @@
         },
         {
             "unitTypeList": [
-                "Laser shooter",
+                "lazershooter",
                 "enemy2",
-                "enemy2",
+                "enemy3",
                 "enemy2",
                 "en"
             ],

@@ -9,7 +9,8 @@ import random
 launchArg: dict = {"mode": "none",
                    "ip": "127.0.0.1",
                    "port": 0,
-                   "playerName": "{default}"}
+                   "playerName": "{default}",
+                   "showTutorial": True,}
 
 launchArg_history: dict = configuration.initializeSettings
 
@@ -34,6 +35,8 @@ def singlePlayer() -> None:
     launchArg["playerName"] = playerNameEntry.get()
     if launchArg["playerName"] == "":
             launchArg["playerName"] = "{default}"
+    launchArg["showTutorial"] = launchArg_history["showTutorial"]
+    writeSettings()
     tk.destroy()
 
 def multiPlayer() -> bool:
@@ -44,6 +47,7 @@ def multiPlayer() -> bool:
         launchArg["mode"] = "multi"
         if launchArg["playerName"] == "":
             launchArg["playerName"] = "{default}"
+        launchArg["showTutorial"] = launchArg_history["showTutorial"]
         writeSettings()
         messagebox.showinfo("Gaming Argument", f"You will join a game at {launchArg['ip']}:{launchArg['port']}")
     else:

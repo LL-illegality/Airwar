@@ -24,10 +24,8 @@ class TutorialManager:
 
     def _loadConfig(self) -> None:
         try:
-            with open(".\\configs\\initializeSettings.json", "r") as f:
-                config = json.load(f)
-                if config.get("showTutorial", True) == False:
-                    self._showTutorial = False
+            if configuration.initializeSettings["showTutorial"] == False:
+                self._showTutorial = False
         except:
             pass
 

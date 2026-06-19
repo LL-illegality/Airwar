@@ -4,9 +4,7 @@
     "drops": [
         1,
         1,
-        1,
         2,
-        0,
         0,
         0,
         0,
@@ -18,7 +16,11 @@
         6,
         6,
         6,
-        6
+        6,
+        6,
+        6,
+        7,
+        7
     ],
     "flags": [
         {
@@ -72,8 +74,8 @@
                 "en",
                 "test",
                 "test",
-                "weakling",
-                "weakling"
+                "enemy4",
+                "enemy4"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
@@ -81,7 +83,7 @@
         {
             "unitTypeList": [
                 "test",
-                "test",
+                "enemy4",
                 "weakling",
                 "unit1"
             ],
@@ -91,19 +93,19 @@
         {
             "unitTypeList": [
                 "weakling",
-                "Laser shooter",
+                "lazershooter",
                 "enemy2",
-                "enemy2"
+                "enemy3"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "Laser shooter",
+                "lazershooter",
                 "test",
                 "unit1",
-                "en",
+                "enemy5",
                 "en"
             ],
             "timeBeforeNext": 300,
@@ -129,12 +131,12 @@
         },
         {
             "unitTypeList": [
-                "Laser shooter",
-                "Laser shooter",
-                "test",
-                "test",
-                "weakling",
-                "weakling"
+                "lazershooter",
+                "enemy4",
+                "enemy3",
+                "unit1",
+                "enemy5",
+                "enemy5"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
@@ -144,8 +146,8 @@
                 "test",
                 "enemy2",
                 "test",
-                "Laser shooter",
-                "Laser shooter",
+                "lazershooter",
+                "lazershooter",
                 "en",
                 "test",
                 "test",
@@ -158,17 +160,16 @@
         },
         {
             "unitTypeList": [
-                "test",
+                "enemy4",
                 "enemy2",
-                "test",
-                "Laser shooter",
-                "Laser shooter",
+                "enemy4",
+                "lazershooter",
+                "lazershooter",
                 "en",
                 "enemy2",
+                "enemy3",
                 "enemy2",
-                "enemy2",
-                "unit1",
-                "unit1"
+                "big1"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
