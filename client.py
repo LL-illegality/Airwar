@@ -86,8 +86,14 @@ class Client:
         self.resopnse: dict | None = None
         self.isRunning = True
     
+    @staticmethod
+    def _ws_uri(ip: str, port: int) -> str:
+        if ':' in ip:
+            return f"ws://[{ip}]:{port}"
+        return f"ws://{ip}:{port}"
+    
     async def sendMessage(self, msg: Message) -> dict | None:
-        uri = f"ws://{self.ip}:{self.port}"
+        uri = self._ws_uri(self.ip, self.port)
         async with websockets.connect(uri) as ws:
             await ws.send(str(msg))
             async for ws_message in ws:
@@ -96,7 +102,7 @@ class Client:
         return None
     
     async def connect(self) -> None:
-        uri = f"ws://{self.ip}:{self.port}"
+        uri = self._ws_uri(self.ip, self.port)
         async with websockets.connect(uri) as ws:
             msg = Message(str(self.player_id), "connect", {"playerName": self.playerName})
             await ws.send(str(msg))

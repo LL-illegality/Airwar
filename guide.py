@@ -30,8 +30,20 @@ def getCurrIp() -> str:
             s.close()
     return ip
 
+def getCurrIpv6() -> str:
+    try:
+        s = socket.socket(socket.AF_INET6, socket.SOCK_DGRAM)
+        s.connect(('2001:4860:4860::8888', 80))
+        ip = s.getsockname()[0]
+        s.close()
+        return ip
+    except Exception:
+        return ''
+
 def singlePlayer() -> None:
     launchArg["mode"] = "single"
+    launchArg["ip"] = ipEntry.get()
+    launchArg["port"] = int(portEntry.get())
     launchArg["playerName"] = playerNameEntry.get()
     if launchArg["playerName"] == "":
             launchArg["playerName"] = "{default}"
@@ -69,7 +81,11 @@ playerNameEntry = ttk.Entry(tk, width=28)
 playerNameEntry.grid(row=2,column=1,columnspan=999)
 
 ttk.Label(tk, text="IP & Port", justify='center').grid(row=3,column=0)
-ipEntry =  ttk.Combobox(tk, values=["127.0.0.1", "localhost", getCurrIp()])
+ipv6 = getCurrIpv6()
+cb_values = ["127.0.0.1", "localhost", getCurrIp()]
+if ipv6:
+    cb_values.append(ipv6)
+ipEntry =  ttk.Combobox(tk, values=cb_values)
 ipEntry.grid(row=3,column=1)
 portEntry =  ttk.Entry(tk,width=5)
 portEntry.grid(row=3,column=2)

@@ -385,6 +385,13 @@ class WeaponGroup:
             if type(weapon) == weaponType:
                 weapon.upgrade()
     
+    def getHighestLevel(self) -> int:
+        highestLevel = 0
+        for weapon in self.weapons:
+            if weapon.level > highestLevel:
+                highestLevel = weapon.level
+        return highestLevel
+    
     @property
     def isShooting(self) -> bool:
         return self.isShooting_
@@ -481,16 +488,16 @@ class LazerGun(Weapon):
         10: Images.lazer10
     }
     bulletDamageMap: dict[int, float] = {
-        1: 1.5,
-        2: 3,
+        1: 2,
+        2: 4,
         3: 6.5,
-        4: 7.5,
-        5: 9,
-        6: 11,
-        7: 13.5,
-        8: 14,
-        9: 15,
-        10: 16
+        4: 9,
+        5: 11,
+        6: 13,
+        7: 15,
+        8: 18,
+        9: 20,
+        10: 22
     }
     def __init__(self, shooterRace: Race) -> None:
         super().__init__(Lazer(), 1.5, shooterRace)
@@ -523,15 +530,15 @@ class Autocannon(Weapon):
     }
     bulletDamageMap: dict[int, float] = {
         1: 10,
-        2: 15,
-        3: 18,
-        4: 18,
-        5: 23,
-        6: 23,
-        7: 30,
-        8: 40,
-        9: 50,
-        10: 60
+        2: 12,
+        3: 15,
+        4: 20,
+        5: 24,
+        6: 28,
+        7: 31,
+        8: 35,
+        9: 37,
+        10: 40
     }
     bulletVelocityMap: dict[int, float] = {
         1: -20,
@@ -619,6 +626,7 @@ class MissileLauncher_slow(MissileLauncher):
     def __init__(self, shooterRace: Race) -> None:
         super().__init__(shooterRace)
         self.fireRate = 1.5 * gametick
+        self.jamType = WeaponJamType.shotgun
 
 class Unit(Entity):
     def __init__(self, x: float = 0, y: float = 0, health: float = 100, width: float = 100, height: float = 50) -> None:
@@ -765,7 +773,7 @@ class Player(Unit):
                 self.magabombQuantity += 1
                 continue
             elif item == ItemTypes.medic:
-                self.health = 100
+                self.health = min(self.health + 50 * random.random() + 25, 100)
                 continue
             self.inventory.append(item)
         self.gottenItem.clear()
@@ -917,6 +925,11 @@ class Board:
         if type(sound) == Sounds:
             sound = sound.value
         return Message('server', 'playsound', {"sound": sound})
+
+    def generateParticleMessage(self, effect: ParticleEffect | str, x: float, y: float) -> Message:
+        if isinstance(effect, ParticleEffect):
+            effect = effect.value
+        return Message('server', 'particle_effect', {"effect": effect, "x": x, "y": y})
     
     def update(self) -> None:
         spatial = SpatialGrid()
@@ -946,6 +959,7 @@ class Board:
                         self.projectiles.remove(i)
                         del i
                     self.msgQueue.push(self.generateSoundMessage(Sounds.nuclear_missile_explode))
+                    self.msgQueue.push(self.generateParticleMessage(ParticleEffect.nuke_explosion, item.x, item.y))
                     break
                 if isinstance(item, Unit):
                     if item.weapon.isShooting:
@@ -985,9 +999,25 @@ class Board:
                     self.msgQueue.push(self.generateSoundMessage(Sounds.nuclear_missile_shoot))
                 for other in spatial.get_nearby(item):
                     if item != other and item & other:
+                        was_alive = item.isAlive
                         item.onCollision(other)
+                        if was_alive and not item.isAlive:
+                            if isinstance(item, Missile):
+                                self.msgQueue.push(self.generateParticleMessage(ParticleEffect.missile_hit, item.x, item.y))
+                            elif isinstance(item, Rocket):
+                                self.msgQueue.push(self.generateParticleMessage(ParticleEffect.rocket_hit, item.x, item.y))
+                            elif isinstance(item, Bullet):
+                                self.msgQueue.push(self.generateParticleMessage(ParticleEffect.bullet_hit, item.x, item.y))
+                            elif isinstance(item, Lazer):
+                                self.msgQueue.push(self.generateParticleMessage(ParticleEffect.lazer_hit, item.x, item.y))
+                            elif isinstance(item, AutocannonShells):
+                                self.msgQueue.push(self.generateParticleMessage(ParticleEffect.autocannon_hit, item.x, item.y))
                 if isinstance(item, Unit) and item.health <= 0:
                     item.isAlive = False
+                    if isinstance(item, Player):
+                        self.msgQueue.push(self.generateParticleMessage(ParticleEffect.player_explosion, item.x, item.y))
+                    else:
+                        self.msgQueue.push(self.generateParticleMessage(ParticleEffect.enemy_explosion, item.x, item.y))
                 if item.isAlive == False:
                     if isinstance(item, Unit):
                         for itemType in item.inventory:
@@ -1051,6 +1081,32 @@ class Level:
         if self.isFinished == True:
             return None
         return self.flags[self.currFlagIndex]
+
+    def splitFlag(self, flag: Flag, avgLevel: int, nukeBonus: int = 0) -> Flag:
+        total = len(flag.unitTypeList)
+        if total <= 1:
+            return flag
+        ratio = avgLevel / MIN_WEAPON_LEVEL_THRESHOLD
+        frontCount = max(1, int(total * ratio + MIN_ENEMY_COUNT_THRESHOLD + avgLevel - MIN_WEAPON_LEVEL_THRESHOLD / 2) + nukeBonus)
+        if frontCount >= total:
+            return flag
+        indices = list(range(total))
+        random.shuffle(indices)
+        pick = set(indices[:frontCount])
+        frontUnits = [flag.unitTypeList[i] for i in range(total) if i in pick]
+        backUnits = [flag.unitTypeList[i] for i in range(total) if i not in pick]
+        frontFlag = Flag(frontUnits, flag.timeBeforeNext, flag.finishCondition.value)
+        frontFlag.drops = []
+        backFlag = Flag(backUnits, 20, 1)
+        backFlag.drops = []
+        for item in flag.drops:
+            if random.random() < 0.5:
+                frontFlag.drops.append(item)
+            else:
+                backFlag.drops.append(item)
+        self.flags.insert(self.currFlagIndex + 1, backFlag)
+        self.totalFlags += 1
+        return frontFlag
 
 class LevelLoader:
     def __init__(self, path: str = '.\\levels') -> None:
@@ -1178,6 +1234,16 @@ class Game:
             delay = random.randint(0, int(1.5 * gametick))
             self.pendingEnemies.append((unit, delay))
 
+    def _maybeSplitFlag(self, level: Level, flag: Flag) -> Flag:
+        if not self.board.players:
+            return flag
+        avg = sum(p.weapon.getHighestLevel() for p in self.board.players) // len(self.board.players)
+        if avg < MIN_WEAPON_LEVEL_THRESHOLD and len(flag.unitTypeList) > MIN_ENEMY_COUNT_THRESHOLD:
+            total_nukes = sum(p.magabombQuantity for p in self.board.players)
+            nuke_bonus = total_nukes if total_nukes <= 2 else 2 * (total_nukes - 2) + 2
+            flag = level.splitFlag(flag, avg, nuke_bonus)
+        return flag
+
     def _processPendingEnemies(self) -> None:
         remaining: list[tuple[Enemy, int]] = []
         for unit, delay in self.pendingEnemies:
@@ -1221,6 +1287,7 @@ class Game:
                     if flag == None:
                         return
                     else:
+                        flag = self._maybeSplitFlag(level, flag)
                         self.addFlagUnit(flag)
             else:
                 if len(self.pendingEnemies) > 0:
@@ -1232,6 +1299,7 @@ class Game:
                 if flag is None:
                     return
                 elif flag.finishCondition == FlagFinishCondition.waitForTime:
+                    flag = self._maybeSplitFlag(level, flag)
                     self.addFlagUnit(flag)
                 else:
                     level.currFlagIndex -= 1
@@ -1377,14 +1445,42 @@ class WebSocketServer:
 
     async def start(self) -> None:
         print(f"启动 WebSocket 服务器: ws://{self.host}:{self.port}")
-        serve = await websockets.serve(self.handle_client, self.host, self.port)
+        try:
+            hostname = socket.gethostname()
+            ipv6_info = socket.getaddrinfo(hostname, None, socket.AF_INET6, socket.SOCK_STREAM)
+            if ipv6_info:
+                ipv6 = ipv6_info[0][4][0]
+                print(f"IPv6 地址: ws://[{ipv6}]:{self.port}")
+        except Exception:
+            pass
+        try:
+            sock = socket.socket(socket.AF_INET6, socket.SOCK_STREAM)
+            sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            try:
+                sock.setsockopt(socket.IPPROTO_IPV6, socket.IPV6_V6ONLY, 0)
+            except (AttributeError, OSError):
+                pass
+            sock.bind(('::', self.port))
+            sock.setblocking(False)
+            serve = await websockets.serve(self.handle_client, sock=sock)
+            print("已启用 IPv4/IPv6 双栈监听")
+        except Exception:
+            serve = await websockets.serve(self.handle_client, self.host, self.port)
+            print("仅监听 IPv4")
         task = asyncio.create_task(self.Judge())
         await asyncio.gather(serve.wait_closed(), task)
 
 async def main() -> None:
-    # 创建 WebSocket 服务器实例
     hostname = socket.gethostname()
     ip = socket.gethostbyname(hostname)
+    try:
+        ipv6_info = socket.getaddrinfo(hostname, None, socket.AF_INET6, socket.SOCK_STREAM)
+        if ipv6_info:
+            ipv6 = ipv6_info[0][4][0]
+            print(f"本机 IPv4: {ip}")
+            print(f"本机 IPv6: [{ipv6}]")
+    except Exception:
+        pass
     websocket_server = WebSocketServer(ip, 8000)
     await websocket_server.start()
 

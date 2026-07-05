@@ -110,7 +110,7 @@
         ],
         "velocity": {
             "x": 0,
-            "y": 20
+            "y": 5
         },
         "boundingBox": {
             "width": 50,
@@ -171,7 +171,10 @@
         "image": "enemy5",
         "weapon": [
             "RocketLauncherEnemy",
-            "LazerGun"
+            "RocketLauncherEnemy",
+            "RocketLauncherEnemy",
+            "LazerGun",
+            "Shotgun_slow"
         ],
         "velocityMultiplier": 0.8,
         "velocity": {
@@ -190,9 +193,11 @@
             "RocketLauncherEnemy",
             "Shotgun",
             "LazerGun",
-            "EnergyWeapon"
+            "EnergyWeapon",
+            "EnergyWeaponEnhanced",
+            "MissileLauncher_slow"
         ],
-        "velocityMultiplier": 0.8,
+        "velocityMultiplier": 0.9,
         "velocity": {
             "x": 0,
             "y": 20
@@ -207,13 +212,20 @@
         "image": "big2",
         "weapon": [
             "RocketLauncherEnemy",
+            "RocketLauncherEnemy",
+            "Shotgun",
+            "Shotgun",
             "Shotgun",
             "LazerGun",
             "EnergyWeaponEnhanced",
+            "EnergyWeaponEnhanced",
             "EnergyWeapon",
+            "EnergyWeapon",
+            "EnergyWeapon",
+            "MissileLauncher_slow",
             "MissileLauncher_slow"
         ],
-        "velocityMultiplier": 0.8,
+        "velocityMultiplier": 0.9,
         "acceleration": {
             "x": 0,
             "y": 1

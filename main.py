@@ -2,6 +2,7 @@ import json
 import asyncio
 import time
 import random
+import math
 import guide
 import data
 import sys
@@ -12,18 +13,24 @@ import pygame
 from server import *  # type: ignore[reportGeneralTypeIssues]
 import client
 import tutorial
+from background import Background
+from particles import (ParticleGroup, EnemyExplosion, MissileTrail, RocketTrail,
+                       MissileHit, RocketHit, PlayerExplosion, NukeExplosion,
+                       BulletHit, LazerHit, AutocannonHit)
 
 '''developed by LL'''
 
 TITLE = "Airwar"
 WIDTH: int = SCREENSIZE[0]
 HEIGHT: int = SCREENSIZE[1] + 64
-VERSION: str = 'Ver. 1.2.0'
+VERSION: str = 'Ver. 1.3.1'
 gamemode: GameMode = GameMode.single
 hasJoystick: bool = False
 lastJoyAxis: list[float] = [0.0, 0.0]
 game: Game | None = None
 websocket: client.Client | client.SinglePlayerClient | None = None
+background: 'Background | None' = None
+
 
 class ImageLoader:
     def __init__(self) -> None:
@@ -38,6 +45,8 @@ class ImageLoader:
         self.tutorialManager: tutorial.TutorialManager | None = None
         self.isPaused = False
         self.pausePlayerName = ''
+        self.particle_groups: list[ParticleGroup] = []
+        self.projectile_trails: dict[int, ParticleGroup] = {}
     
     async def getData(self) -> None:
         global websocket
@@ -61,6 +70,85 @@ class ImageLoader:
                 self.isPaused = content['isPaused']
                 self.pausePlayerName = content.get('pausePlayerName', '')
     
+    def onParticleEffect(self, *args: Any) -> None:
+        global websocket
+        if websocket is not None and websocket.resopnse is not None:
+            content = websocket.resopnse['content']
+            effect_name = content.get('effect', '')
+            x = content.get('x', 0)
+            y = content.get('y', 0)
+            try:
+                effect = ParticleEffect(effect_name)
+            except ValueError:
+                return
+            pg = self._create_particle_effect(effect, x, y)
+            if pg is not None:
+                self.particle_groups.append(pg)
+
+    @staticmethod
+    def _create_particle_effect(effect: ParticleEffect, x: float, y: float) -> ParticleGroup | None:
+        if effect == ParticleEffect.enemy_explosion:
+            return EnemyExplosion(x, y)
+        if effect == ParticleEffect.player_explosion:
+            return PlayerExplosion(x, y)
+        if effect == ParticleEffect.missile_hit:
+            return MissileHit(x, y)
+        if effect == ParticleEffect.rocket_hit:
+            return RocketHit(x, y)
+        if effect == ParticleEffect.nuke_explosion:
+            return NukeExplosion(x, y)
+        if effect == ParticleEffect.bullet_hit:
+            return BulletHit(x, y)
+        if effect == ParticleEffect.lazer_hit:
+            return LazerHit(x, y)
+        if effect == ParticleEffect.autocannon_hit:
+            return AutocannonHit(x, y)
+        return None
+
+    def update_particles(self) -> None:
+        self._update_trails()
+        self._update_particle_groups()
+
+    def _update_trails(self) -> None:
+        trail_ids: set[int] = set()
+        for data in self.currEntities.values():
+            img = data.get('image', '')
+            if img not in ('missile', 'rocket', 'rocket_enemy'):
+                continue
+            eid = data['id']
+            trail_ids.add(eid)
+            if eid in self.projectile_trails:
+                trail = self.projectile_trails[eid]
+            else:
+                trail = MissileTrail(data['x'], data['y']) if img == 'missile' else RocketTrail(data['x'], data['y'])
+                self.projectile_trails[eid] = trail
+            rad = math.radians(data['rotation'])
+            trail.x = data['x'] - 8 * math.sin(rad)
+            trail.y = data['y'] + 8 * math.cos(rad)
+            if len(trail.particles) < trail.max_particles:
+                bx = -math.sin(rad)
+                by = math.cos(rad)
+                if img == 'missile':
+                    vx = bx * 2 + random.uniform(-0.5, 0.5)
+                    vy = by * 2 + random.uniform(-0.5, 0.5)
+                else:
+                    vx = bx * 3 + random.uniform(-1, 1)
+                    vy = by * 3 + random.uniform(-1, 1)
+                trail.emit(1, vx=vx, vy=vy)
+        for eid in list(self.projectile_trails.keys()):
+            if eid not in trail_ids:
+                trail = self.projectile_trails.pop(eid)
+                trail.emission_rate = 0
+                self.particle_groups.append(trail)
+
+    def _update_particle_groups(self) -> None:
+        for pg in self.particle_groups[:]:
+            pg.update()
+            if pg.particle_count == 0:
+                self.particle_groups.remove(pg)
+        for trail in self.projectile_trails.values():
+            trail.update()
+
     def setTitle(self, *args: Any) -> None:
         global websocket
         if websocket is not None and websocket.resopnse is not None:
@@ -77,7 +165,12 @@ class ImageLoader:
     def draw_(self, *args: Any) -> None:
         global websocket
         #asyncio.run(self.getData())
-        screen.fill((230, 230, 230))
+        if background is not None:
+            background.draw(screen)
+        for trail in self.projectile_trails.values():
+            trail.draw(screen)
+        for pg in self.particle_groups:
+            pg.draw(screen)
         versionText = font.render(VERSION, True, (19, 19, 19))
         rect = versionText.get_rect()
         rect.topright = (WIDTH - 8, 8)
@@ -210,6 +303,7 @@ class ResourcesLoader:
             "playsound": self.soundLoader.play,
             "load_level": self.imageLoader.setLevelInfo,
             "set_title": self.imageLoader.setTitle,
+            "particle_effect": self.imageLoader.onParticleEffect,
         }
     
     def process(self, responseMessage: Message) -> None:
@@ -246,6 +340,7 @@ else:
 pygame.init()
 screen = pygame.display.set_mode((WIDTH, HEIGHT))
 clock = pygame.time.Clock()
+background = Background(WIDTH, HEIGHT)
 if pygame.joystick.get_count() > 0:
         hasJoystick = True
         joystick = pygame.joystick.Joystick(0)
@@ -367,7 +462,6 @@ def mainloop() -> None:
                         resourcesLoader.imageLoader.drawTriangle = not resourcesLoader.imageLoader.drawTriangle
                 if event.type == pygame.JOYHATMOTION:
                     on_hatmotion(event.value)
-
         while tickAccumulator >= GAME_TICK_MS:
             tickAccumulator -= GAME_TICK_MS
             if isinstance(websocket, client.SinglePlayerClient) and game is not None:
@@ -381,8 +475,10 @@ def mainloop() -> None:
                     if not game.isPaused:
                         websocket.update()
                         game.detectLevelState()
-
         process()
+        resourcesLoader.imageLoader.update_particles()
+        if background is not None:
+            background.update()
         if websocket is not None:
             resourcesLoader.imageLoader.draw_()
         if resourcesLoader.imageLoader.isPaused:
