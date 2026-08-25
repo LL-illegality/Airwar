@@ -1,6 +1,6 @@
 {
     "name": "Level 1",
-    "totalFlags": 7,
+    "totalFlags": 8,
     "drops": [
         0,
         1,
@@ -13,57 +13,68 @@
     "flags": [
         {
             "unitTypeList": [
-                "enemy2"
+                "charger",
+                "weakling"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "enemy2"
-            ],
-            "timeBeforeNext": 30,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "enemy2"
-            ],
-            "timeBeforeNext": 30,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "enemy3"
-            ],
-            "timeBeforeNext": 30,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "lazershooter",
-                "test",
-                "test"
+                "weakling",
+                "weakling",
+                "weakling"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "lazershooter",
-                "en",
-                "test"
+                "darter",
+                "darter"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "lazershooter",
-                "enemy2",
-                "enemy3",
-                "enemy2",
-                "en"
+                "weakling",
+                "darter",
+                "weakling"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "sweeper",
+                "sweeper"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "darter",
+                "sweeper",
+                "weakling"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "gunner"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "sniper",
+                "weakling",
+                "gunner",
+                "sweeper"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1

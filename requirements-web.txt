@@ -1,0 +1,2 @@
+# Web 客户端静态服务器（web.py）依赖；游戏服务器（server.py）不需要 Flask
+flask>=3.0

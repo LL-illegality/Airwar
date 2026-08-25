@@ -5,12 +5,12 @@ import pygame
 from typing import Any
 from const import *
 from data import Message
-from server import EnemyBuilder, BoundingBox, Race, Images, Unit
+from server import EnemyBuilder, BoundingBox, Race, Images, Unit, Game, WeaponGroup, Shotgun
 
 
 class TutorialManager:
-    def __init__(self, game: Any, msgQueue: Any, font: pygame.font.Font, fontChinese: pygame.font.Font):
-        self.game = game
+    def __init__(self, game: Game, msgQueue: Any, font: pygame.font.Font, fontChinese: pygame.font.Font):
+        self.game: Game = game
         self.msgQueue = msgQueue
         self.font = font
         self.fontChinese = fontChinese
@@ -135,30 +135,71 @@ class TutorialManager:
             unit = EnemyBuilder(inventory=[0], weapon=["Shotgun_normal"]).build()
             self.addTutorialUnit(unit)
         elif step == 13:
-            self.awaitingSurfaceList.append(self.fontChinese.render("不同的道具有不同的效果", True, (19, 19, 19)))
+            self.awaitingSurfaceList.append(self.fontChinese.render("现在你的武器升级了", True, (19, 19, 19)))
             self.waitTime = 2 * gametick
         elif step == 14:
-            self.awaitingSurfaceList.append(self.fontChinese.render("可以升级武器，回复血量，或者更换武器等等", True, (19, 19, 19)))
-            self.waitTime = 2 * gametick
+            self.awaitingSurfaceList.append(self.fontChinese.render("当获得与当前武器类型相同的道具时可以升级武器", True, (19, 19, 19)))
+            self.waitTime = 4 * gametick
         elif step == 15:
-            self.awaitingSurfaceList.append(self.fontChinese.render("试着击杀敌人并收集道具吧", True, (19, 19, 19)))
-            self.waitTime = 2147483647
-            for i in range(7):
-                unit = EnemyBuilder(inventory=[i], image=random.choice([Images.ca, Images.enemy, Images.enemy2, Images.rship, Images.unit1])).build()
-                self.addTutorialUnit(unit)
+            self.awaitingSurfaceList.append(self.fontChinese.render("若类型不同则会将当前武器替换为新武器", True, (19, 19, 19)))
+            self.waitTime = 4 * gametick
         elif step == 16:
+            self.awaitingSurfaceList.append(self.fontChinese.render("你当前的武器是霰弹枪，升级增加子弹数量", True, (19, 19, 19)))
+            self.waitTime = 4 * gametick
+        elif step == 17:
+            self.awaitingSurfaceList.append(self.fontChinese.render("现在来试试这个", True, (19, 19, 19)))
+            self.waitTime = 2147483647
+            unit = EnemyBuilder(inventory=[1]).build()
+            self.addTutorialUnit(unit)
+        elif step == 18:
+            self.awaitingSurfaceList.append(self.fontChinese.render("这是激光武器，发射激光，升级增加伤害", True, (19, 19, 19)))
+            self.waitTime = 5 * gametick
+        elif step == 19:
+            self.awaitingSurfaceList.append(self.fontChinese.render("再来试试这个", True, (19, 19, 19)))
+            self.waitTime = 2147483647
+            unit = EnemyBuilder(inventory=[7]).build()
+            self.addTutorialUnit(unit)
+        elif step == 20:
+            self.awaitingSurfaceList.append(self.fontChinese.render("这是自动机炮，可以自动瞄准敌人，升级增加子弹速度和伤害", True, (19, 19, 19)))
+            self.waitTime = 5 * gametick
+        elif step == 21:
+            self.awaitingSurfaceList.append(self.fontChinese.render("当然，除了这些武器以外还有副武器", True, (19, 19, 19)))
+            self.waitTime = 2147483647
+            unit = EnemyBuilder(inventory=[2]).build()
+            self.addTutorialUnit(unit)
+        elif step == 22:
+            self.awaitingSurfaceList.append(self.fontChinese.render("这是导弹发射器，发射导弹，但是不可以升级", True, (19, 19, 19)))
+            self.waitTime = 5 * gametick
+        elif step == 23:
+            self.awaitingSurfaceList.append(self.fontChinese.render("类似的还有这个", True, (19, 19, 19)))
+            self.waitTime = 2147483647
+            unit = EnemyBuilder(inventory=[4]).build()
+            self.addTutorialUnit(unit)
+        elif step == 24:
+            self.awaitingSurfaceList.append(self.fontChinese.render("这是火箭发射器，伤害高于导弹，同样不可以升级", True, (19, 19, 19)))
+            self.waitTime = 5 * gametick
+        elif step == 25:
+            self.awaitingSurfaceList.append(self.fontChinese.render("此外，还有一些其他道具", True, (19, 19, 19)))
+            self.waitTime = 2147483647
+            for i in range(3):
+                unit = EnemyBuilder(inventory=[[3, 5, 6][i]]).build()
+                self.addTutorialUnit(unit)
+        elif step == 26:
+            self.awaitingSurfaceList.append(self.fontChinese.render("他们分别可以将武器升至满级，回复血量，以及获得一个核弹", True, (19, 19, 19)))
+            self.waitTime = 5 * gametick
+        elif step == 27:
             self.awaitingSurfaceList.append(self.fontChinese.render("当敌人数量过多无法解决时", True, (19, 19, 19)))
             self.waitTime = 2 * gametick
-        elif step == 17:
+        elif step == 28:
             self.awaitingSurfaceList.append(self.fontChinese.render("若右下角有核弹图标", True, (19, 19, 19)))
             self.waitTime = 2 * gametick
-        elif step == 18:
+        elif step == 29:
             self.awaitingSurfaceList.append(self.fontChinese.render(f"则可以按下{operationText['nuclear']}使用核弹", True, (19, 19, 19)))
             self.waitTime = 2 * gametick
-        elif step == 19:
+        elif step == 30:
             self.awaitingSurfaceList.append(self.fontChinese.render("核弹可以一次性消灭所有敌人", True, (19, 19, 19)))
             self.waitTime = 2 * gametick
-        elif step == 20:
+        elif step == 31:
             self.awaitingSurfaceList.append(self.fontChinese.render("使用核弹消灭敌人吧", True, (19, 19, 19)))
             self.waitTime = 2147483647
             for player in self.game.board.players:
@@ -167,19 +208,24 @@ class TutorialManager:
             for _ in range(10):
                 unit = EnemyBuilder(health=1000000, image=random.choice([Images.ca, Images.enemy, Images.enemy2, Images.rship, Images.unit1])).build()
                 self.addTutorialUnit(unit)
-        elif step == 21:
+        elif step == 32:
             self.awaitingSurfaceList.append(self.fontChinese.render("很好，你已经学会了所有技能了", True, (19, 19, 19)))
             self.waitTime = 3 * gametick
-        elif step == 22:
+        elif step == 33:
             self.awaitingSurfaceList.append(self.fontChinese.render("教程结束", True, (19, 19, 19)))
             self.waitTime = 3 * gametick
-        elif step == 23:
+        elif step == 34:
             self.awaitingSurfaceList.append(self.fontChinese.render("接下来按下准备即可开始游戏", True, (19, 19, 19)))
             self.waitTime = 2 * gametick
-        elif step == 24:
+        elif step == 35:
+            for player in self.game.board.players:
+                player.inventory = []
+                player.gottenItem = []
+                player.weapon = WeaponGroup(Shotgun(player.race))
+                player.health = 100
+                player.magabombQuantity = 1
             self._finishTutorial()
             return
-
         pygame.mixer.Sound.play(soundMap.sounds[Sounds.transmission])
 
     def _finishTutorial(self) -> None:

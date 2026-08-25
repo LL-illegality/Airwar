@@ -14,16 +14,16 @@ from server import *  # type: ignore[reportGeneralTypeIssues]
 import client
 import tutorial
 from background import Background
-from particles import (ParticleGroup, EnemyExplosion, MissileTrail, RocketTrail,
-                       MissileHit, RocketHit, PlayerExplosion, NukeExplosion,
-                       BulletHit, LazerHit, AutocannonHit)
+from particles import *
+from display import DisplayManager
+from fonts import load_font
 
 '''developed by LL'''
 
 TITLE = "Airwar"
 WIDTH: int = SCREENSIZE[0]
 HEIGHT: int = SCREENSIZE[1] + 64
-VERSION: str = 'Ver. 1.3.1'
+VERSION: str = VERSION
 gamemode: GameMode = GameMode.single
 hasJoystick: bool = False
 lastJoyAxis: list[float] = [0.0, 0.0]
@@ -338,16 +338,17 @@ else:
     sys.exit()
 
 pygame.init()
-screen = pygame.display.set_mode((WIDTH, HEIGHT))
+display = DisplayManager((WIDTH, HEIGHT), fullscreen=bool(guide.launchArg.get("fullscreen", True)))
+screen = display.logic_surface
 clock = pygame.time.Clock()
 background = Background(WIDTH, HEIGHT)
 if pygame.joystick.get_count() > 0:
         hasJoystick = True
         joystick = pygame.joystick.Joystick(0)
         joystick.init()
-font = pygame.font.SysFont("Consola", 30)
-fontChinese = pygame.font.SysFont("SimHei", 30)
-littleFont = pygame.font.SysFont("Consola", 20)
+font = load_font("Consola", 20)
+fontChinese = load_font("SimHei", 20)
+littleFont = load_font("Consola", 15)
 pygame.mouse.set_visible(False)
 pygame.display.set_caption(TITLE)
 #pygame.display.set_icon(pygame.image.load(".\\images\\game.ico"))
@@ -411,7 +412,12 @@ def mainloop() -> None:
         for event in pygame.event.get():
             if event.type == pygame.QUIT:
                 asyncio.run(on_quit())
+            elif event.type == pygame.VIDEORESIZE:
+                # RESIZABLE 窗口被拖拽缩放：画面等比放大/缩小（黑边补齐）
+                display.handle_resize(event.size)
             elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_F11 or (event.key == pygame.K_RETURN and event.mod & pygame.KMOD_ALT):
+                    display.toggle_fullscreen()
                 if event.key == pygame.K_p and isinstance(websocket, client.SinglePlayerClient) and game is not None:
                     game.isPaused = not game.isPaused
                     resourcesLoader.imageLoader.isPaused = game.isPaused
@@ -492,7 +498,7 @@ def mainloop() -> None:
                 pauseText = fontChinese.render("游戏暂停", True, (255, 255, 255))
             rect = pauseText.get_rect(center=(WIDTH // 2, HEIGHT // 3))
             screen.blit(pauseText, rect)
-        pygame.display.flip()
+        display.present()
 
 if guide.launchArg["mode"] == "none":
     sys.exit()

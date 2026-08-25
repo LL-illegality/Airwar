@@ -12,8 +12,12 @@ import time
 import math
 from collections import defaultdict
 
-def createInstanceFromClassname(classname: str, kwargs: dict) -> object:
-    return globals()[classname](**kwargs)
+def createInstanceFromClassname(classname: str, kwargs: dict[str, Any] | None = None) -> Any:
+    kwargs = kwargs or {}
+    cls = globals().get(classname)
+    if cls is None:
+        raise ValueError(f"Unknown class name: {classname}")
+    return cls(**kwargs)
 
 class Point:
     def __init__(self, x: float = 0, y: float = 0) -> None:
@@ -206,6 +210,8 @@ class Projectile(Entity):
     
     def onCollision(self, other: Entity) -> None:
         if other.race != self.shooterRace and other.race != Race.neutral and isinstance(other, Unit):
+            if isinstance(other, Player) and other.isEntering:
+                return  # 飞入动画期间无敌（加入/复活保护）
             other.health -= self.damage
             self.isAlive = False
 
@@ -411,10 +417,697 @@ class WeaponGroup:
             else:
                 retList.append(proj)
         return retList
-    
+
+    def shoot_with_context(self, x: float, y: float, direction: Vector | None = None, game_context: dict | None = None) -> list[Projectile | None]:
+        """带方向与游戏上下文射击（机制武器专用）。普通武器忽略 direction/context，保持原有行为。"""
+        retList: list[Projectile | None] = []
+        for weapon in self.weapons:
+            if isinstance(weapon, EnemyWeapon):
+                proj = weapon.shoot(x, y, direction, game_context)
+            else:
+                proj = weapon.shoot(x, y)
+            if isinstance(proj, list):
+                retList.extend(proj)
+            else:
+                retList.append(proj)
+        return retList
+
     def update(self) -> None:
+        """更新所有武器冷却（每帧由 Unit.update 驱动）。"""
         for weapon in self.weapons:
             weapon.update()
+
+def _normalize(v: Vector) -> Vector:
+    """向量归一化。零向量返回 (0,0)。"""
+    length = (v.x**2 + v.y**2) ** 0.5
+    if length < 0.0001:
+        return Vector(0, 0)
+    return Vector(v.x / length, v.y / length)
+
+def _rotate_vector(v: Vector, angle_deg: float) -> Vector:
+    """旋转向量（角度制）。与 ~Vector 约定一致：0°=向上、角度增大=视觉顺时针。"""
+    rad = math.radians(angle_deg)
+    cos = math.cos(rad)
+    sin = math.sin(rad)
+    return Vector(v.x * cos - v.y * sin, v.x * sin + v.y * cos)
+
+def _angle_from_vector(v: Vector) -> float:
+    """向量 → 角度（度，0°=向上、顺时针增大，与 ~Vector 一致）。"""
+    return ~v
+
+def _vector_from_angle(angle_deg: float) -> Vector:
+    """角度（0°=向上、顺时针增大）→ 单位向量。"""
+    return _rotate_vector(Vector(0, -1), angle_deg)
+
+class EnemyWeapon(Weapon):
+    """敌人机制武器基类。
+
+    扩展 Weapon.shoot() 接口：支持方向向量与游戏上下文（玩家列表、敌人自身引用）。
+    子类继承本类后覆盖 _fire() 实现具体弹幕逻辑，并通过覆盖 __init__ 提供默认参数。
+    """
+    def __init__(self, bullet: Projectile, fireRate: float, shooterRace: Race = Race.enemy) -> None:
+        super().__init__(bullet, fireRate, shooterRace)
+        self.sound = Sounds.shotgun_shoot
+        # 使用内置 cooldown 控制射击节奏；状态机类（ChargeBurst/RingBlast/PhaseSwitch）设为 False 自行控制
+        self.use_cooldown = True
+
+    def shoot(self, x: float, y: float, times: int | Vector | dict | None = 1,
+              direction: Vector | dict | None = None,
+              game_context: dict | None = None) -> list[Projectile] | None:
+        """兼容基类 Weapon.shoot() 的 times 位置参数，并接受旧版 direction/game_context 调用。"""
+        if isinstance(times, Vector):
+            if isinstance(direction, dict) and game_context is None:
+                game_context = direction
+            direction = times
+            times = 1
+        elif isinstance(times, dict) and direction is None and game_context is None:
+            game_context = times
+            times = 1
+        if not self.isShooting:
+            return None
+        if direction is None:
+            return None
+        if isinstance(direction, dict):
+            if game_context is None:
+                game_context = direction
+            direction = Vector(0, -1)
+        # 每帧更新瞄准角度（不受 cooldown 限制，扫射类武器持续跟踪目标）
+        self._update_aim(direction, game_context)
+        if self.use_cooldown and self.cooldown > 0:
+            return None
+        retList = self._fire(x, y, direction, game_context)
+        if retList is not None and len(retList) > 0:
+            if self.use_cooldown:
+                self.cooldown = self.fireRate
+            if self.playSound:
+                Board.msgQueue.push(Message('server', 'playsound', {"sound": self.sound.value}))
+            else:
+                self.playSound = True
+        return retList
+
+    def _fire(self, x: float, y: float, direction: Vector, game_context: dict | None) -> list[Projectile] | None:
+        """子类实现具体弹幕生成。返回子弹列表，或 None（本次未射击）。"""
+        raise NotImplementedError
+
+    def _update_aim(self, direction: Vector, game_context: dict | None) -> None:
+        """每帧更新瞄准角度（扫射类武器覆盖实现）。"""
+        pass
+
+    def _spawn_bullet(self, x: float, y: float, direction: Vector, speed: float) -> Projectile:
+        """创建一颗沿 direction 方向、speed 速度的子弹（无自动追踪）。"""
+        bullet = type(self.bullet)()
+        bullet.shooterRace = self.shooterRace
+        bullet.image = self.bullet.image
+        bullet.x = x
+        bullet.y = y
+        bullet.chooseTarget = False
+        bullet.chooseTargetAngle = 360
+        bullet.velocity = _normalize(direction) * speed
+        if self.shooterRace == Race.enemy:
+            if bullet.image == Images.bullet1:
+                bullet.image = Images.bullet_enemy
+        return bullet
+
+    def _nearest_player(self, game_context: dict | None, x: float, y: float) -> Player | None:
+        """从上下文取最近玩家（供预判/瞄准用）。"""
+        if not game_context:
+            return None
+        players = game_context.get('players') or []
+        if len(players) == 0:
+            return None
+        return min(players, key=lambda p: (p.x - x)**2 + (p.y - y)**2)
+
+def _spread_offsets(count: int, fan_angle: float) -> list[float]:
+    """扇形内均匀分布的角度偏移列表（相对中心）。"""
+    if count <= 1:
+        return [0.0]
+    return [-fan_angle / 2 + fan_angle * i / (count - 1) for i in range(count)]
+
+class FanSweep(EnemyWeapon):
+    """扇形扫射：扇形中心角度持续向玩家方向旋转，每次射击在扇形内均匀撒弹。
+
+    角度在 _update_aim 中每帧更新（不受 cooldown 限制）；首次调用直接对准目标方向，
+    保证开局子弹立即朝玩家飞去，避免长时间空射。
+    """
+    def __init__(self, shooterRace: Race = Race.enemy, fan_angle: float = 60, sweep_speed: float = 2.0,
+                 bullets_per_shot: int = 3, fire_rate: int = 8, bullet_speed: float = 8.0) -> None:
+        super().__init__(Bullet(), fire_rate, shooterRace)
+        self.fan_angle = fan_angle
+        self.sweep_speed = sweep_speed
+        self.bullets_per_shot = bullets_per_shot
+        self.bullet_speed = bullet_speed
+        self.current_angle: float = 0.0
+        self._aim_initialized = False
+
+    def _update_aim(self, direction: Vector, game_context: dict | None) -> None:
+        target_angle = _angle_from_vector(direction)
+        if not self._aim_initialized:
+            # 首次直接对准目标方向，让扫射立刻有攻击效果
+            self.current_angle = target_angle
+            self._aim_initialized = True
+            return
+        diff = (target_angle - self.current_angle + 180) % 360 - 180
+        if diff > self.sweep_speed:
+            diff = self.sweep_speed
+        elif diff < -self.sweep_speed:
+            diff = -self.sweep_speed
+        self.current_angle = (self.current_angle + diff) % 360
+
+    def _fire(self, x: float, y: float, direction: Vector, game_context: dict | None) -> list[Projectile] | None:
+        retList: list[Projectile] = []
+        for offset in _spread_offsets(self.bullets_per_shot, self.fan_angle):
+            bullet_dir = _vector_from_angle(self.current_angle + offset)
+            retList.append(self._spawn_bullet(x, y, bullet_dir, self.bullet_speed))
+        return retList
+
+class FanVolley(EnemyWeapon):
+    """扇形齐射：每隔 burst_interval 帧向玩家方向齐射一轮扇形弹。"""
+    def __init__(self, shooterRace: Race = Race.enemy, volley_count: int = 5, fan_angle: float = 45,
+                 burst_interval: int = 60, bullet_speed: float = 8.0) -> None:
+        super().__init__(Bullet(), burst_interval, shooterRace)
+        self.volley_count = volley_count
+        self.fan_angle = fan_angle
+        self.bullet_speed = bullet_speed
+
+    def _fire(self, x: float, y: float, direction: Vector, game_context: dict | None) -> list[Projectile] | None:
+        base_dir = _normalize(direction)
+        retList: list[Projectile] = []
+        for offset in _spread_offsets(self.volley_count, self.fan_angle):
+            bullet_dir = _rotate_vector(base_dir, offset)
+            retList.append(self._spawn_bullet(x, y, bullet_dir, self.bullet_speed))
+        return retList
+
+class LeadShot(EnemyWeapon):
+    """预判射击（精确打击）：求解子弹命中方程，精确预测玩家未来位置后射击。
+
+    玩家运动模型匹配服务器离散帧推进（Entity.update：x += v; v = clamp(v + a)），
+    并考虑 maxVelocity 速度饱和（Player.maxVelocity=15，速度达到上限后匀速不再增长）——
+    防止玩家持续加速时预判过头。用二分法求解命中时刻 t（f(t)=|P(t)-E|²-(v·t)²=0），
+    f 恒正（追击切点/追不上场景）时牛顿法最小化 f'，朝最接近时刻位置射击。
+    子弹类型为 AutocannonShells（高伤害），飞行速度远快于普通敌弹。
+    prediction_factor 可缩放预判距离（1.0=完全精确，<1 保守、>1 过冲）。
+    """
+    def __init__(self, shooterRace: Race = Race.enemy, bullet_speed: float = 20.0,
+                 prediction_factor: float = 1.0, fire_rate: int = 20) -> None:
+        bullet: AutocannonShells = AutocannonShells()
+        bullet.image = Images.autocannon56
+        super().__init__(bullet, fire_rate, shooterRace)
+        self.bullet_speed = bullet_speed
+        self.prediction_factor = prediction_factor
+        self.sound = Sounds.autocannon_shoot
+
+    def _axis_state(self, v0: float, a: float, vmax: float | None, t: float) -> tuple[float, float, float]:
+        """单轴带最大速度饱和的离散运动状态 (位移, 速度, 加速度)。
+
+        帧推进：x += v; v = clamp(v + a)（速度钳制在 ±vmax，Player.maxVelocity=15）。
+        - 加速段（|v| 未饱和）：位移 = v0·t + 0.5·a·t(t-1)，速度 = v0 + a·(t-0.5)，加速度 = a
+        - 饱和段（速度已达 ±vmax）：匀速位移，速度 = ±vmax，加速度 = 0
+        """
+        if a == 0:
+            return v0 * t, v0, 0.0
+        if vmax is None or vmax <= 0:
+            # 无速度上限：纯匀加速（Player.maxVelocity 恒 15，正常不会走到）
+            return v0 * t + 0.5 * a * t * (t - 1), v0 + a * (t - 0.5), a
+        vm = abs(vmax)
+        if a > 0:
+            if v0 >= vm:
+                return vm * t, vm, 0.0
+            k_sat = (vm - v0) / a
+            if t <= k_sat:
+                return v0 * t + 0.5 * a * t * (t - 1), v0 + a * (t - 0.5), a
+            accel_disp = v0 * k_sat + 0.5 * a * k_sat * (k_sat - 1)
+            return accel_disp + vm * (t - k_sat), vm, 0.0
+        else:
+            if v0 <= -vm:
+                return -vm * t, -vm, 0.0
+            k_sat = (v0 + vm) / (-a)
+            if t <= k_sat:
+                return v0 * t + 0.5 * a * t * (t - 1), v0 + a * (t - 0.5), a
+            accel_disp = v0 * k_sat + 0.5 * a * k_sat * (k_sat - 1)
+            return accel_disp + (-vm) * (t - k_sat), -vm, 0.0
+
+    def _player_state(self, player: Player, t: float) -> tuple[float, float, float, float, float, float]:
+        """玩家 t 帧后状态 (x, y, vx, vy, ax, ay)——含 maxVelocity 饱和。"""
+        dx, vx, ax = self._axis_state(player.velocity.x, player.acceleration.x, player.maxVelocity, t)
+        dy, vy, ay = self._axis_state(player.velocity.y, player.acceleration.y, player.maxVelocity, t)
+        return player.x + dx, player.y + dy, vx, vy, ax, ay
+
+    def _predict_player_pos(self, player: Player, travel_time: float) -> tuple[float, float]:
+        """玩家带 maxVelocity 饱和的预测位置（prediction_factor 缩放预判距离）。"""
+        t = travel_time * self.prediction_factor
+        px, py, _, _, _, _ = self._player_state(player, t)
+        return px, py
+
+    def _solve_hit_time(self, x: float, y: float, player: Player) -> float | None:
+        """求解命中时刻 t：f(t) = |P(t)-E|² - (bullet_speed·t)² = 0。
+
+        玩家运动模型含 maxVelocity 速度饱和（Player.maxVelocity=15，速度达到上限后
+        匀速不再增长）——防止玩家持续加速时预判过头。
+        - 若存在 t 使 f(t)<0（子弹追得上）→ 二分法求最早命中根（f 从正转负的第一个零点）
+        - 若 f 恒 ≥0（玩家加速逃离的追击切点场景）→ 牛顿法最小化 f（求 f'=0），
+          朝"玩家与子弹最接近时刻"的位置射击（最佳努力命中）
+        """
+        v = self.bullet_speed
+
+        def f(t: float) -> float:
+            px, py, _, _, _, _ = self._player_state(player, t)
+            dx = px - x
+            dy = py - y
+            return dx * dx + dy * dy - v * v * t * t
+
+        def fp(t: float) -> float:
+            px, py, vx, vy, _, _ = self._player_state(player, t)
+            dx = px - x
+            dy = py - y
+            return 2 * (dx * vx + dy * vy) - 2 * v * v * t
+
+        def fpp(t: float) -> float:
+            px, py, vx, vy, ax, ay = self._player_state(player, t)
+            dx = px - x
+            dy = py - y
+            return 2 * (vx * vx + vy * vy + dx * ax + dy * ay) - 2 * v * v
+
+        dx0 = player.x - x
+        dy0 = player.y - y
+        t0 = ((dx0 * dx0 + dy0 * dy0) ** 0.5) / v
+        if t0 < 1e-6:
+            return None
+        # 倍增找 f(t_hi) < 0 的区间上界（上限 300 帧 = 10 秒，超时放弃精确求解）
+        t_hi = max(t0, 1.0)
+        f_hi = f(t_hi)
+        while f_hi > 0 and t_hi < 300:
+            t_hi *= 2
+            f_hi = f(t_hi)
+        if f_hi <= 0:
+            # 二分求根：f 从正转负（或切零）的第一个零点（最早命中时刻）
+            lo, hi = 0.0, t_hi
+            for _ in range(50):
+                mid = (lo + hi) / 2
+                if f(mid) > 0:
+                    lo = mid
+                else:
+                    hi = mid
+            return (lo + hi) / 2
+        # f 恒正（追击切点场景）：牛顿最小化 f（f'=0 → 玩家与子弹最接近时刻）
+        t = t0
+        for _ in range(12):
+            df = fp(t)
+            if abs(df) < 1e-6:
+                break
+            ddf = fpp(t)
+            if abs(ddf) < 1e-9:
+                break
+            t_new = t - df / ddf
+            if t_new <= 0:
+                t_new = t * 0.5
+            if abs(t_new - t) < 0.02:
+                t = t_new
+                break
+            t = t_new
+        return max(t, 1e-6)
+
+    def _fire(self, x: float, y: float, direction: Vector, game_context: dict | None) -> list[Projectile] | None:
+        player = self._nearest_player(game_context, x, y)
+        if player is None:
+            return None
+        t = self._solve_hit_time(x, y, player)
+        if t is None:
+            return None
+        predict_x, predict_y = self._predict_player_pos(player, t)
+        aim = Vector(predict_x - x, predict_y - y)
+        return [self._spawn_bullet(x, y, aim, self.bullet_speed)]
+
+class FanSweepNormal(FanSweep):
+    """扇形扫射（普通）：60° 扇形、慢速扫射、3 弹/次。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('fan_angle', 60)
+        kwargs.setdefault('sweep_speed', 2.0)
+        kwargs.setdefault('bullets_per_shot', 3)
+        kwargs.setdefault('fire_rate', 8)
+        super().__init__(shooterRace, **kwargs)
+
+class FanSweepHard(FanSweep):
+    """扇形扫射（困难）：90° 扇形、快速扫射、5 弹/次。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('fan_angle', 90)
+        kwargs.setdefault('sweep_speed', 3.5)
+        kwargs.setdefault('bullets_per_shot', 5)
+        kwargs.setdefault('fire_rate', 6)
+        super().__init__(shooterRace, **kwargs)
+
+class FanVolleyNormal(FanVolley):
+    """扇形齐射（普通）：5 弹/45°、1 秒一轮。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('volley_count', 5)
+        kwargs.setdefault('fan_angle', 45)
+        kwargs.setdefault('burst_interval', 60)
+        super().__init__(shooterRace, **kwargs)
+
+class FanVolleyHard(FanVolley):
+    """扇形齐射（困难）：9 弹/60°、0.8 秒一轮。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('volley_count', 9)
+        kwargs.setdefault('fan_angle', 60)
+        kwargs.setdefault('burst_interval', 48)
+        super().__init__(shooterRace, **kwargs)
+
+class LeadShotNormal(LeadShot):
+    """预判射击（普通）：Autocannon 弹、30 速、0.9 精确预判。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('bullet_speed', 30.0)
+        kwargs.setdefault('prediction_factor', 0.9)
+        kwargs.setdefault('fire_rate', 20)
+        super().__init__(shooterRace, **kwargs)
+
+class LeadShotHard(LeadShot):
+    """预判射击（困难）：Autocannon 弹、40 速、0.9精确预判、更高频率。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('bullet_speed', 40.0)
+        kwargs.setdefault('prediction_factor', 0.9)
+        kwargs.setdefault('fire_rate', 15)
+        super().__init__(shooterRace, **kwargs)
+
+class ChargeBurst(EnemyWeapon):
+    """蓄力连射：蓄力（停止移动）→ 快速连射 N 发 → 休息，循环。
+
+    状态机由每次 shoot 调用推进（isShooting 时 Board 每帧调用）。
+    """
+    STATE_CHARGE = 0
+    STATE_BURST = 1
+    STATE_REST = 2
+
+    def __init__(self, shooterRace: Race = Race.enemy, charge_duration: int = 90, burst_count: int = 8,
+                 burst_interval: int = 3, rest_duration: int = 60, bullet_speed: float = 9.0) -> None:
+        super().__init__(Bullet(), 1, shooterRace)
+        self.use_cooldown = False
+        self.charge_duration = charge_duration
+        self.burst_count = burst_count
+        self.burst_interval = burst_interval
+        self.rest_duration = rest_duration
+        self.bullet_speed = bullet_speed
+        self.state = self.STATE_CHARGE
+        self.state_timer = charge_duration
+        self.burst_left = 0
+
+    def _fire(self, x: float, y: float, direction: Vector, game_context: dict | None) -> list[Projectile] | None:
+        enemy = game_context.get('enemy') if game_context else None
+        if self.state == self.STATE_CHARGE:
+            if enemy is not None:
+                enemy.stop_movement = True
+            self.state_timer -= 1
+            if self.state_timer <= 0:
+                self.state = self.STATE_BURST
+                self.burst_left = self.burst_count
+                self.state_timer = self.burst_interval
+            return None
+        if self.state == self.STATE_BURST:
+            if enemy is not None:
+                enemy.stop_movement = False
+            self.state_timer -= 1
+            if self.state_timer <= 0:
+                self.state_timer = self.burst_interval
+                self.burst_left -= 1
+                if self.burst_left < 0:
+                    self.state = self.STATE_REST
+                    self.state_timer = self.rest_duration
+                    return None
+                return [self._spawn_bullet(x, y, direction, self.bullet_speed)]
+            return None
+        # REST
+        if enemy is not None:
+            enemy.stop_movement = False
+        self.state_timer -= 1
+        if self.state_timer <= 0:
+            self.state = self.STATE_CHARGE
+            self.state_timer = self.charge_duration
+        return None
+
+class PatternLibrary:
+    """弹幕图案预设库：返回角度列表（度，0°=向上、顺时针增大）。"""
+    @staticmethod
+    def ring(count: int, rotation: float = 0.0) -> list[float]:
+        return [(360 * i / count + rotation) % 360 for i in range(count)]
+
+    @staticmethod
+    def spiral(count: int, turns: float = 2.0, rotation: float = 0.0) -> list[float]:
+        return [(360 * turns * i / count + rotation) % 360 for i in range(count)]
+
+    @staticmethod
+    def cross(count: int, rotation: float = 0.0) -> list[float]:
+        base = max(1, count // 4)
+        angles: list[float] = []
+        for i in range(4):
+            angles.extend([(90 * i + rotation) % 360] * base)
+        return angles[:count]
+
+    @staticmethod
+    def diamond(count: int, rotation: float = 0.0) -> list[float]:
+        base = max(1, count // 4)
+        angles: list[float] = []
+        for i in range(4):
+            angles.extend([(45 + 90 * i + rotation) % 360] * base)
+        return angles[:count]
+
+    @staticmethod
+    def get(pattern: str, count: int, rotation: float = 0.0, params: dict | None = None) -> list[float]:
+        """按图案名生成角度列表，params 可覆盖图案参数（如 spiral 的 turns）。"""
+        params = params or {}
+        if pattern == 'ring':
+            return PatternLibrary.ring(count, rotation)
+        if pattern == 'spiral':
+            return PatternLibrary.spiral(count, params.get('turns', 2.0), rotation)
+        if pattern == 'cross':
+            return PatternLibrary.cross(count, rotation)
+        if pattern == 'diamond':
+            return PatternLibrary.diamond(count, rotation)
+        return PatternLibrary.ring(count, rotation)
+
+class FixedPattern(EnemyWeapon):
+    """固定弹幕：按预设图案（圆形/螺旋/十字/菱形）发射一圈弹幕。"""
+    def __init__(self, shooterRace: Race = Race.enemy, pattern: str = 'ring', bullet_count: int = 12,
+                 bullet_speed: float = 3.0, fire_rate: int = 60, pattern_rotation: float = 0.0,
+                 pattern_params: dict | None = None) -> None:
+        super().__init__(Bullet(), fire_rate, shooterRace)
+        self.pattern = pattern
+        self.bullet_count = bullet_count
+        self.bullet_speed = bullet_speed
+        self.pattern_rotation = pattern_rotation
+        self.pattern_params = pattern_params or {}
+
+    def _fire(self, x: float, y: float, direction: Vector, game_context: dict | None) -> list[Projectile] | None:
+        angles = PatternLibrary.get(self.pattern, self.bullet_count, self.pattern_rotation, self.pattern_params)
+        retList: list[Projectile] = []
+        for angle in angles:
+            retList.append(self._spawn_bullet(x, y, _vector_from_angle(angle), self.bullet_speed))
+        return retList
+
+class RingBlast(EnemyWeapon):
+    """环形弹幕：连续发射多圈向外扩散的环形弹。"""
+    def __init__(self, shooterRace: Race = Race.enemy, ring_count: int = 16, bullet_speed: float = 2.0,
+                 rings: int = 3, ring_interval: int = 10, fire_rate: int = 90) -> None:
+        super().__init__(Bullet(), fire_rate, shooterRace)
+        self.use_cooldown = False
+        self.ring_count = ring_count
+        self.bullet_speed = bullet_speed
+        self.rings = rings
+        self.ring_interval = ring_interval
+        self.cool_frames = fire_rate
+        self.rings_left = 0
+        self.ring_timer = 0
+        self.cool_timer = 0
+
+    def _fire(self, x: float, y: float, direction: Vector, game_context: dict | None) -> list[Projectile] | None:
+        if self.rings_left > 0:
+            self.ring_timer -= 1
+            if self.ring_timer <= 0:
+                self.ring_timer = self.ring_interval
+                self.rings_left -= 1
+                retList: list[Projectile] = []
+                for i in range(self.ring_count):
+                    angle = 360 * i / self.ring_count
+                    retList.append(self._spawn_bullet(x, y, _vector_from_angle(angle), self.bullet_speed))
+                if self.rings_left == 0:
+                    self.cool_timer = self.cool_frames
+                return retList
+            return None
+        self.cool_timer -= 1
+        if self.cool_timer <= 0:
+            self.rings_left = self.rings
+            self.ring_timer = 0
+        return None
+
+class ChargeBurstNormal(ChargeBurst):
+    """蓄力连射（普通）：1.5 秒蓄力、15 连发、2 秒休息。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('charge_duration', 45)
+        kwargs.setdefault('burst_count', 15)
+        kwargs.setdefault('burst_interval', 2)
+        kwargs.setdefault('rest_duration', 60)
+        super().__init__(shooterRace, **kwargs)
+
+class ChargeBurstHard(ChargeBurst):
+    """蓄力连射（困难）：1 秒蓄力、20 连发、1.5 秒休息。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('charge_duration', 30)
+        kwargs.setdefault('burst_count', 25)
+        kwargs.setdefault('burst_interval', 1)
+        kwargs.setdefault('rest_duration', 45)
+        super().__init__(shooterRace, **kwargs)
+
+class FixedPatternSpiral(FixedPattern):
+    """固定弹幕（螺旋）：16 发 2 圈螺旋。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('pattern', 'spiral')
+        kwargs.setdefault('bullet_count', 16)
+        kwargs.setdefault('bullet_speed', 3.0)
+        kwargs.setdefault('fire_rate', 60)
+        kwargs.setdefault('pattern_params', {'turns': 2.0})
+        super().__init__(shooterRace, **kwargs)
+
+class FixedPatternCross(FixedPattern):
+    """固定弹幕（十字）：4 轴各 3 发。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('pattern', 'cross')
+        kwargs.setdefault('bullet_count', 12)
+        kwargs.setdefault('bullet_speed', 4.0)
+        kwargs.setdefault('fire_rate', 60)
+        super().__init__(shooterRace, **kwargs)
+
+class FixedPatternDiamond(FixedPattern):
+    """固定弹幕（菱形）：4 斜角各 3 发。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('pattern', 'diamond')
+        kwargs.setdefault('bullet_count', 12)
+        kwargs.setdefault('bullet_speed', 4.0)
+        kwargs.setdefault('fire_rate', 60)
+        super().__init__(shooterRace, **kwargs)
+
+class RingBlastNormal(RingBlast):
+    """环形弹幕（普通）：16 弹/圈、3 圈、3 秒冷却。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('ring_count', 16)
+        kwargs.setdefault('bullet_speed', 2.0)
+        kwargs.setdefault('rings', 3)
+        kwargs.setdefault('ring_interval', 10)
+        kwargs.setdefault('fire_rate', 90)
+        super().__init__(shooterRace, **kwargs)
+
+class RingBlastWide(RingBlast):
+    """环形弹幕（宽）：24 弹/圈、4 圈、2 秒冷却。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('ring_count', 24)
+        kwargs.setdefault('bullet_speed', 2.5)
+        kwargs.setdefault('rings', 4)
+        kwargs.setdefault('ring_interval', 8)
+        kwargs.setdefault('fire_rate', 60)
+        super().__init__(shooterRace, **kwargs)
+
+class PhaseSwitch(EnemyWeapon):
+    """阶段切换：按时间或血量阈值在多个子武器间切换。
+
+    phases 示例: [{"weapon": "FanSweepNormal", "duration": 300, "params": {"fan_angle": 45}}, ...]
+    trigger: 'time'（duration 后切档）| 'health'/'hp_ratio'（血量低于 max*threshold 后切档）
+    """
+    def __init__(self, shooterRace: Race = Race.enemy, phases: list[dict] | None = None,
+                 trigger: str = 'time', health_threshold: float = 0.5) -> None:
+        super().__init__(Bullet(), 1, shooterRace)
+        self.use_cooldown = False
+        self.phases: list[dict] = phases or []
+        self.trigger = trigger
+        self.health_threshold = health_threshold
+        self.current_phase = 0
+        self.phase_timer = 0
+        self.max_health: float | None = None
+        self.current_weapon: Weapon | None = None
+        if len(self.phases) > 0:
+            self._enter_phase(0)
+
+    def _enter_phase(self, index: int) -> None:
+        self.current_phase = index % len(self.phases)
+        phase = self.phases[self.current_phase]
+        params = {'shooterRace': self.shooterRace}
+        params.update(phase.get('params', {}))
+        weapon = createInstanceFromClassname(phase['weapon'], params)
+        weapon.isShooting = True
+        self.current_weapon = weapon
+        self.phase_timer = phase.get('duration', 0)
+
+    def _check_trigger(self, game_context: dict | None) -> bool:
+        """返回 True 表示应切换到下一阶段。"""
+        if self.trigger == 'time':
+            self.phase_timer -= 1
+            return self.phase_timer <= 0
+        if self.trigger in ('health', 'hp_ratio'):
+            enemy = game_context.get('enemy') if game_context else None
+            if enemy is None:
+                return False
+
+            enemy_health = getattr(enemy, 'health', None)
+            if enemy_health is None:
+                return False
+
+            # 某些配置可能传入 None，避免出现 "unsupported operand type(s) for *: 'NoneType' and 'float'"
+            threshold = self.health_threshold if self.health_threshold is not None else 0.5
+            max_health = self.max_health
+            if max_health is None:
+                max_health = enemy_health
+                self.max_health = max_health
+            if enemy_health <= max_health * threshold:
+                self.max_health = enemy_health
+                return True
+        return False
+
+    def shoot(self, x: float, y: float, times: int | Vector | dict | None = 1,
+              direction: Vector | dict | None = None,
+              game_context: dict | None = None) -> list[Projectile] | None:
+        """兼容 EnemyWeapon.shoot() 的签名，并接受旧版 direction/game_context 调用。"""
+        if isinstance(times, Vector):
+            if isinstance(direction, dict) and game_context is None:
+                game_context = direction
+            direction = times
+            times = 1
+        elif isinstance(times, dict) and direction is None and game_context is None:
+            game_context = times
+            times = 1
+
+        if not self.isShooting or direction is None:
+            return None
+        if self.current_weapon is None:
+            return None
+        if self._check_trigger(game_context):
+            self._enter_phase(self.current_phase + 1)
+
+        if isinstance(self.current_weapon, EnemyWeapon):
+            return self.current_weapon.shoot(x, y, direction=direction, game_context=game_context)
+        return self.current_weapon.shoot(x, y)
+
+    def update(self) -> None:
+        super().update()
+        if self.current_weapon is not None:
+            self.current_weapon.update()
+
+class PhaseSwitchEarly(PhaseSwitch):
+    """阶段切换（前期）：时间触发，2 阶段（扇形扫射 → 环形弹幕）。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('trigger', 'time')
+        kwargs.setdefault('phases', [
+            {'weapon': 'FanSweepNormal', 'duration': 300},
+            {'weapon': 'RingBlastNormal', 'duration': 200},
+        ])
+        super().__init__(shooterRace, **kwargs)
+
+class PhaseSwitchLate(PhaseSwitch):
+    """阶段切换（后期）：血量触发，3 阶段（扇形齐射 → 蓄力连射 → 预判射击）。"""
+    def __init__(self, shooterRace: Race = Race.enemy, **kwargs) -> None:
+        kwargs.setdefault('trigger', 'hp_ratio')
+        kwargs.setdefault('health_threshold', 0.66)
+        kwargs.setdefault('phases', [
+            {'weapon': 'FanVolleyHard', 'duration': 0},
+            {'weapon': 'ChargeBurstHard', 'duration': 0},
+            {'weapon': 'MissileLauncher', 'duration': 0},
+            {'weapon': 'LeadShotHard', 'duration': 0},
+        ])
+        super().__init__(shooterRace, **kwargs)
 
 class EnergyWeapon(Weapon):
     def __init__(self, shooterRace: Race) -> None:
@@ -648,26 +1341,95 @@ class Enemy(Unit):
         self.race = Race.enemy
         self.weapon = WeaponGroup()
         self.targetPos: list[int] | None = None
-    
+        # 移动模式：random（原有随机游走）| station（静止）| strafe（横向往返）| circle（圆周运动）
+        self.move_pattern: str = 'random'
+        # 射击模式：auto（持续射击，原有行为）| burst（间歇射击）
+        self.shoot_pattern: str = 'auto'
+        # 机制武器标记：weapon 列表包含 EnemyWeapon 子类时为 True，Board.update 走 context 射击
+        self.uses_mechanic_weapons: bool = False
+        # 外部强制停止移动（ChargeBurst 蓄力期由武器设置）
+        self.stop_movement: bool = False
+        # burst 间歇射击计时
+        self._burstTimer = 0
+        self._burstOn = 30
+        self._burstOff = 30
+        # strafe / circle 状态
+        self._strafeDir = 1
+        self._circleAngle = 0.0
+        self._circleCenter: list[float] | None = None
+        # 移动推力（strafe/circle/station 飞行共用，可在 enemyTypes.json 配置调慢）
+        self.move_thrust: float = 1.5
+        # station 驻留点（飞到后定住；None 时随机生成）
+        self._stationTarget: list[int] | None = None
+
     def randomTargetPos(self) -> None:
         self.targetPos = [random.randint(0, SCREENSIZE[0]), random.randint(0, SCREENSIZE[1])]
         self.acceleration = Vector(0, random.randint(-10, 10) / 10)
-    
+
     def update(self) -> None:
         super().update()
         self.rotation = ~self.velocity
-        self.weapon.isShooting = True
-        if self.targetPos is not None:
-            self.faceToTargetPos()
-        else:
-            self.randomTargetPos()
-        distance = self.distanceToTargetPos()
-        if distance is not None:
-            if distance < 30:
+        self._update_shooting()
+        self._update_movement()
+
+    def _update_shooting(self) -> None:
+        if self.shoot_pattern == 'auto':
+            self.weapon.isShooting = True
+        elif self.shoot_pattern == 'burst':
+            self._burstTimer -= 1
+            if self._burstTimer <= 0:
+                self.weapon.isShooting = not self.weapon.isShooting
+                self._burstTimer = self._burstOn if self.weapon.isShooting else self._burstOff
+
+    def _update_movement(self) -> None:
+        if self.stop_movement:
+            self.velocity = Vector(0, 0)
+            self.acceleration = Vector(0, 0)
+            return
+        if self.move_pattern == 'random':
+            if self.targetPos is not None:
+                self.faceToTargetPos()
+            else:
                 self.randomTargetPos()
-        if self.velocity == Vector(0, 0):
-            self.randomTargetPos()
-    
+            distance = self.distanceToTargetPos()
+            if distance is not None:
+                if distance < 30:
+                    self.randomTargetPos()
+            if self.velocity == Vector(0, 0):
+                self.randomTargetPos()
+        elif self.move_pattern == 'station':
+            # 从屏幕外飞向驻留点，到达后定住不动
+            if self._stationTarget is None:
+                if self.targetPos is not None:
+                    self._stationTarget = self.targetPos
+                else:
+                    self._stationTarget = [random.randint(0, SCREENSIZE[0]), random.randint(80, 400)]
+            a0 = Vector(self._stationTarget[0] - self.x, self._stationTarget[1] - self.y)
+            dist = (a0.x**2 + a0.y**2) ** 0.5
+            if dist < 20:
+                self.velocity = Vector(0, 0)
+                self.acceleration = Vector(0, 0)
+            else:
+                self.acceleration = a0 * (self.move_thrust / dist)
+        elif self.move_pattern == 'strafe':
+            self.acceleration = Vector(self.move_thrust * self._strafeDir, 0)
+            if self.x >= SCREENSIZE[0] - 30:
+                self._strafeDir = -1
+            elif self.x <= 30:
+                self._strafeDir = 1
+        elif self.move_pattern == 'circle':
+            if self._circleCenter is None:
+                self._circleCenter = [SCREENSIZE[0] / 2, SCREENSIZE[1] / 2]
+            self._circleAngle = (self._circleAngle + 2.0) % 360
+            radius = 150
+            target_x = self._circleCenter[0] + radius * math.cos(math.radians(self._circleAngle))
+            target_y = self._circleCenter[1] + radius * math.sin(math.radians(self._circleAngle))
+            # 固定推力朝目标点（直接赋值加速度，避免 faceToTarget 对 0 长度加速度失效）
+            a0 = Vector(target_x - self.x, target_y - self.y)
+            l0 = (a0.x**2 + a0.y**2) ** 0.5
+            if l0 > 0:
+                self.acceleration = a0 * (self.move_thrust / l0)
+
     def faceToTargetPos(self) -> None:
         if self.targetPos is None:
             return
@@ -700,14 +1462,54 @@ class Player(Unit):
         self.boundingBox = BoundingBox(16, 32)
         self.weapon = WeaponGroup(Shotgun(self.race))
         self.maxVelocity = 15.0
+        # 飞入战场状态：从屏幕最下方飞入并在加入位置停下（加入/复活/通关复活共用）
+        self.isEntering: bool = False
+        self._enterTargetX = 0.0
+        self._enterTargetY = 2 / 3 * SCREENSIZE[1]
+        self._enterSpeed = 20.0   # 初始向上速度（帧）
+        self._enterDecel = 0.83   # 每帧减速（24 帧 ≈ 0.8 秒到达并恰好停下）
     
+    def startEntering(self, target_x: float | None = None, target_y: float | None = None) -> None:
+        """从屏幕最下方（y=SCREENSIZE[1]+50）飞入战场，1 秒内匀减速到目标位置停下。
+
+        target_x 默认当前 x（加入/复活的随机停靠位）；target_y 默认 2/3 屏高（玩家加入位置）。
+        """
+        self.isEntering = True
+        if target_x is None:
+            target_x = self.x
+        if target_y is None:
+            target_y = 2 / 3 * SCREENSIZE[1]
+        self._enterTargetX = float(target_x)
+        self._enterTargetY = float(target_y)
+        self.x = self._enterTargetX
+        self.y = SCREENSIZE[1] + 50
+        self.velocity = Vector(0, -self._enterSpeed)
+        self.acceleration = Vector(0, self._enterDecel)
+        self.rotation = ~self.velocity
+
+    def _updateEntering(self) -> None:
+        """飞入动画推进：匀减速向上，到达目标位置后停下。"""
+        self.y += self.velocity.y
+        self.velocity.y += self._enterDecel
+        self.rotation = ~self.velocity
+        if self.y <= self._enterTargetY or self.velocity.y >= 0:
+            self.y = self._enterTargetY
+            self.velocity = Vector(0, 0)
+            self.acceleration = Vector(0, 0)
+            self.isEntering = False
+
     def update(self) -> None:
-        super().update()
         if Keys.c in self.pressedKeyList:
             self.isReady = True
         else:
             if self.isReady == True:
                 self.isReady = False
+        if self.isEntering:
+            # 飞入动画期间：不受输入/重力/碰撞伤害影响（无敌），仅推进动画
+            self._updateEntering()
+            self.weapon.update()
+            return
+        super().update()
         if Keys.e in self.pressedKeyList and self.magabombQuantity > 0:
             self.magabombQuantity -= 1
             self.isThrowingMagabomb = True
@@ -795,7 +1597,11 @@ class EnemyBuilder:
                  targetPos: list[int] | None = None,
                  maxVelocity: float | None = None,
                  velocityMultiplier: float = 0.9,
-                 inventory: list[int] | None = None
+                 inventory: list[int] | None = None,
+                 weapon_params: dict | None = None,
+                 move_pattern: str = 'random',
+                 shoot_pattern: str = 'auto',
+                 move_thrust: float = 1.5
                  ) -> None:
         self.enemy = Enemy()
         self.enemy.maxVelocity = maxVelocity
@@ -807,8 +1613,24 @@ class EnemyBuilder:
         self.enemy.acceleration = acceleration
         self.enemy.boundingBox = boundingBox
         self.enemy.inventory = [ItemTypes(item) for item in (inventory or [])]
-        self.enemy.weapon = WeaponGroup(*[createInstanceFromClassname(weapon[i], {'shooterRace': Race.enemy}) for i in range(len(weapon))]) if weapon is not None else WeaponGroup()
-    
+        self.enemy.move_pattern = move_pattern
+        self.enemy.shoot_pattern = shoot_pattern
+        self.enemy.move_thrust = move_thrust
+        self.weapon_params: dict = weapon_params or {}
+        if weapon is not None:
+            weapons = [self._create_weapon(w) for w in weapon]
+            self.enemy.weapon = WeaponGroup(*weapons)
+            self.enemy.uses_mechanic_weapons = any(isinstance(w, EnemyWeapon) for w in weapons)
+        else:
+            self.enemy.weapon = WeaponGroup()
+
+    def _create_weapon(self, classname: str) -> Weapon:
+        """创建武器实例：基础参数 + weapon_params[classname] 覆盖注入。"""
+        params: dict = {'shooterRace': Race.enemy}
+        if classname in self.weapon_params:
+            params.update(self.weapon_params[classname])
+        return createInstanceFromClassname(classname, params)
+
     def build(self) -> Enemy:
         return self.enemy
 
@@ -874,7 +1696,19 @@ class Board:
     def addUnit(self, unit: Entity, type: str) -> None:
         if type == 'unit':
             if not isinstance(unit, Item):
-                unit.x = random.randint(0, SCREENSIZE[0])
+                if isinstance(unit, Enemy) and unit.move_pattern == 'strafe':
+                    # strafe 只有水平移动：y 必定在屏幕内（>0），从左右两侧飞入，避免屏幕外游荡
+                    unit.y = random.randint(1, 100)
+                    unit.x = random.choice([-50, SCREENSIZE[0] + 50])
+                else:
+                    # 其他敌人（含 station 驻留型）从屏幕外飞入：y 在屏幕外上方~屏幕内上部随机
+                    unit.y = random.randint(-80, 100)
+                    if unit.y > 0:
+                        # 屏幕内 → 从左右两侧飞入（x 放屏幕外）
+                        unit.x = random.choice([-50, SCREENSIZE[0] + 50])
+                    else:
+                        # 屏幕外上方 → 从顶部飞入（x 屏幕内随机）
+                        unit.x = random.randint(0, SCREENSIZE[0])
             self.units.append(unit)  # type: ignore[arg-type]
             self.increaseId()
             unit.id = self.currId
@@ -963,7 +1797,15 @@ class Board:
                     break
                 if isinstance(item, Unit):
                     if item.weapon.isShooting:
-                        bullets = item.weapon.shoot(item.x, item.y)
+                        if isinstance(item, Enemy) and item.uses_mechanic_weapons:
+                            direction: Vector | None = None
+                            target = self.nearestPlayer(item.x, item.y)
+                            if target is not None:
+                                direction = Vector(target.x - item.x, target.y - item.y)
+                            bullets = item.weapon.shoot_with_context(
+                                item.x, item.y, direction, {'players': self.players, 'enemy': item})
+                        else:
+                            bullets = item.weapon.shoot(item.x, item.y)
                         for bullet in bullets:
                             if bullet is not None:
                                 if bullet.chooseTargetAngle < 360:
@@ -1059,6 +1901,7 @@ class Level:
         self.flags: list[Flag] = []
         for i in range(totalFlags):
             self.flags.append(Flag(**flags[i]))
+        self._initialDrops: list[int] = list(drops)
         for item in drops:
             flag = random.choice(self.flags)
             flag.drops.append(item)
@@ -1069,6 +1912,19 @@ class Level:
             self.isFinished = True
             return
         self.flags[self.currFlagIndex].isFinished = False
+
+    def reset(self) -> None:
+        """重置本关卡进度（供服务器自动重置后重新开局使用）。"""
+        self.currFlagIndex = -1
+        self.waitLoaded = False
+        self.isFinished = False
+        for flag in self.flags:
+            flag.isFinished = False
+            flag.drops = []
+        # 恢复初始掉落物品（重新随机分配到各 flag）
+        for item in self._initialDrops:
+            flag = random.choice(self.flags)
+            flag.drops.append(item)
     
     def getCurrFlag(self) -> Flag | None:
         if self.currFlagIndex == -1 or self.currFlagIndex >= self.totalFlags:
@@ -1180,7 +2036,18 @@ class LevelLoader:
             return None
         return self.levelData[self.currLevel]
 
+    def reset(self) -> None:
+        """重置关卡进度（回到第一关），供服务器自动重置后重新开局使用。"""
+        self.currLevel = -1
+        self.isFinished = False
+        for level in self.levelData:
+            level.reset()
+
 class Game:
+    # 自动重置倒计时（帧，gametick=30）：全灭 5 秒、通关 10 秒后回主菜单
+    AUTO_RESET_GAME_OVER_DELAY: int = 5 * gametick
+    AUTO_RESET_GAME_WIN_DELAY: int = 10 * gametick
+
     def __init__(self, queue: Queue) -> None:
         self._currState = GameState.mainMenu
         self.levelLoader = LevelLoader()
@@ -1193,6 +2060,11 @@ class Game:
         self.pausePlayerId = -1
         self.pausePlayerName = ''
         self.pendingEnemies: list[tuple[Enemy, int]] = []
+        # 在线玩家注册表：player_id -> playerName（供自动重置后重生；单人/多人共用）
+        self.online_players: dict[int, str] = {}
+        self._resetTimer = 0
+        self._resetReason = ''
+        self._hasStartedGame = False
     
     def setWaitTime(self, time: int) -> None:
         self.waitTime = time
@@ -1256,6 +2128,9 @@ class Game:
     def detectLevelState(self) -> None:
         if self.isPaused:
             return
+        if self.currState == GameState.gameWin:
+            # 已通关：等待服务器自动重置（10 秒后回主菜单），不再重复触发关卡加载
+            return
         if self.isWaitTimeOver() == False:
             pass
         else:
@@ -1282,6 +2157,8 @@ class Game:
                     self.msgQueue.push(Message('server', 'load_level', {'level': level.name}))
                     self.msgQueue.push(Message('server', 'set_title', {'title': level.name, 'duration': 5 * gametick}))
                     level.waitLoaded = True
+                    # 通关复活：死去的玩家在新关卡开始前飞入战场
+                    self._revive_dead_players()
                 else:
                     flag = level.loadFlag()
                     if flag == None:
@@ -1307,10 +2184,84 @@ class Game:
     def update(self) -> None:
         self.board.update()
         self._processPendingEnemies()
+        self._check_auto_reset()
         self.getObjects()
+
+    def _spawn_player(self, pid: int, playerName: str) -> None:
+        """按指定 player_id 重建玩家（重生/加入用），初始化逻辑与 WebSocketServer.new_player 一致。"""
+        player = Player(pid)
+        player.x = random.randint(0, SCREENSIZE[0])
+        player.y = 2/3 * SCREENSIZE[1]
+        imageid = pid % 2
+        if imageid == 1:
+            player.image = Images.player2
+        else:
+            player.image = Images.player1
+        if playerName != "{default}":
+            player.name = playerName
+        else:
+            player.name = str(pid)
+        self.board.addPlayer(player)
+        # 从屏幕最下方飞入战场（加入/自动重置复活的统一入场动画）
+        player.startEntering()
+
+    def _revive_dead_players(self) -> None:
+        """通关时复活死去的玩家（在线注册表中不在场上的玩家），飞入战场。"""
+        alive_ids = {p.player_id for p in self.board.players}
+        for pid, name in self.online_players.items():
+            if pid not in alive_ids:
+                self._spawn_player(pid, name)
+
+    def _check_auto_reset(self) -> None:
+        """自动重置检测（每帧 update 调用，单人/多人共用）：
+        - 所有玩家死亡（inGame/loadLevel 中 players 清空）→ 5 秒后回主菜单并重生在线玩家
+        - 通关（gameWin）→ 10 秒后执行同样操作
+        """
+        state = self.currState
+        if state == GameState.inGame:
+            self._hasStartedGame = True
+        elif state == GameState.mainMenu:
+            self._hasStartedGame = False
+        if self._resetTimer > 0:
+            self._resetTimer -= 1
+            if self._resetTimer <= 0:
+                self._perform_auto_reset()
+            return
+        if state == GameState.gameWin:
+            self._resetTimer = self.AUTO_RESET_GAME_WIN_DELAY
+            self._resetReason = 'game_win'
+        elif state in (GameState.inGame, GameState.loadLevel) and \
+                self._hasStartedGame and len(self.board.players) == 0:
+            self._resetTimer = self.AUTO_RESET_GAME_OVER_DELAY
+            self._resetReason = 'game_over'
+
+    def _perform_auto_reset(self) -> None:
+        """执行自动重置：清场 → 关卡复位 → 重生在线玩家 → 切回主菜单。"""
+        print(f"自动重置（{self._resetReason}）：回主菜单并重生 {len(self.online_players)} 名在线玩家")
+        # 清场：敌方单位、子弹、待生成敌人
+        self.board.units.clear()
+        self.board.projectiles.clear()
+        self.pendingEnemies.clear()
+        # 移除现有玩家（gameWin 时玩家仍存活，需重建为全新状态）
+        for p in list(self.board.players):
+            self.board.players.remove(p)
+        # 关卡复位（回到第一关）
+        self.levelLoader.reset()
+        # 重生所有在线玩家
+        for pid, name in self.online_players.items():
+            self._spawn_player(pid, name)
+        # 切回主菜单并复位暂停
+        self.currState = GameState.mainMenu
+        self.isPaused = False
+        self.pausePlayerId = -1
+        self.pausePlayerName = ''
+        self._resetTimer = 0
+        self._resetReason = ''
+        self._hasStartedGame = False
 
 class WebSocketServer:
     messageQueue: Queue = Queue()
+
     def __init__(self, host="localhost", port=8765) -> None:
         self.host = host
         self.port = port
@@ -1322,20 +2273,8 @@ class WebSocketServer:
         playerNum = 0
         while self.game.board.findPlayer(playerNum) != None:
             playerNum += 1
-        player = Player(playerNum)
-        player.x = random.randint(0, SCREENSIZE[0])
-        player.y = 2/3 * SCREENSIZE[1]
-        imageid = player.player_id % 2
-        if imageid == 1:
-            player.image = Images.player2
-        else:
-            player.image = Images.player1
-        if playerName != "{default}":
-            player.name = playerName
-        else:
-            player.name = str(player.player_id)
-        self.game.board.addPlayer(player)
-        return player.player_id
+        self.game._spawn_player(playerNum, playerName)
+        return playerNum
 
     async def handle_client(self, websocket: websockets.ServerConnection) -> None:
         # 新的客户端连接
@@ -1350,6 +2289,7 @@ class WebSocketServer:
                 if msg.type == 'connect':
                     if self.game.currState == GameState.mainMenu:
                         pid = await self.new_player(msg.content['playerName'])
+                        self.game.online_players[pid] = msg.content['playerName']
                         await websocket.send(str(Message('server', 'connect', {'player_id': pid})))
                     else:
                         await websocket.send(str(Message('server', 'connect', {'player_id': -1})))
@@ -1404,14 +2344,26 @@ class WebSocketServer:
                                 player.pressedKeyList.append(Keys.s)
                     # if msg.content['key'] == Keys.esc:
                     #     self.game.isPaused = self.game.isPaused ^ True
+            else:
+                # 对端正常关闭（如浏览器关闭页面，发送 close frame）：websockets 的
+                # async for 迭代器会吞掉 ConnectionClosedOK 并正常退出（不抛异常），
+                # 因此必须在 else 中移除玩家，否则断连的飞机残留在游戏里
+                print(f"客户端连接正常关闭: pid={pid}")
+                self._remove_player(pid)
         except websockets.ConnectionClosed as e:
             print(f"客户端断开连接: {e}")
-            for player in self.game.board.players:
-                    if player.player_id == pid:
-                        self.game.board.players.remove(player)
+            self._remove_player(pid)
         finally:
             # 移除断开的客户端
             self.clients.remove(websocket)
+
+    def _remove_player(self, pid: int) -> None:
+        """按 player_id 从游戏板移除玩家（断连清理）并注销在线注册。"""
+        self.game.online_players.pop(pid, None)
+        for player in self.game.board.players:
+            if player.player_id == pid:
+                self.game.board.players.remove(player)
+                return
     
     async def Judge(self) -> None:
         while True:

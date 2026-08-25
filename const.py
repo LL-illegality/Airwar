@@ -9,6 +9,7 @@ pygame.mixer.init()
 
 pi: float = 3.141592653589793
 SCREENSIZE = (800, 600)
+VERSION: str = 'Ver. 1.4.0'
 CELL_SIZE = 100
 CAPACITY = 4
 disappearAera = (-100, -100, SCREENSIZE[0]+100, SCREENSIZE[1]+100)
@@ -89,6 +90,8 @@ class Images(Enum):
     item_maga = "item_maga"
     item_medic = "item_medic"
     ca = "ca"
+    boss1 = "boss1"
+    boss2 = "boss2"
 
 class SpecialEnemyBehavior(Enum):
     none = 0

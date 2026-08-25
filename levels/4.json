@@ -24,8 +24,11 @@
         7,
         7,
         5,
-        5,
-        5,
+        6,
+        6,
+        6,
+        6,
+        6,
         6,
         6,
         6,
@@ -61,201 +64,107 @@
     "flags": [
         {
             "unitTypeList": [
-                "enemy4",
-                "enemy4",
-                "enemy4",
-                "enemy4",
-                "enemy4",
-                "enemy4"
+                "volleyer",
+                "volleyer",
+                "darter",
+                "darter"
             ],
             "timeBeforeNext": 30,
             "finishCondition": 0
         },
         {
             "unitTypeList": [
-                "enemy5",
-                "enemy5",
-                "lazershooter",
-                "enemy5",
-                "enemy5",
-                "lazershooter"
+                "spinner",
+                "spinner",
+                "ringcaster"
             ],
             "timeBeforeNext": 30,
             "finishCondition": 0
         },
         {
             "unitTypeList": [
-                "unit1",
-                "unit1",
-                "enemy4",
-                "enemy4",
-                "en",
-                "enemy4",
-                "lazershooter",
-                "en"
+                "crossman",
+                "crossman",
+                "sniper"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
+                "charger",
+                "charger",
+                "rocketeer"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "heavy",
+                "energizer",
+                "energizer"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "sweeper",
+                "sweeper",
+                "sweeper",
+                "volleyer",
+                "volleyer"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "ringcaster",
+                "ringcaster",
+                "crossman"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "boss_mechanic",
                 "big1",
-                "enemy5",
-                "lazershooter",
-                "lazershooter"
+                "darter",
+                "darter"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling"
-            ],
-            "timeBeforeNext": 120,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "unit1",
-                "enemy5",
-                "enemy5",
-                "test",
-                "test",
-                "test",
-                "unit1",
-                "unit1"
+                "spinner",
+                "spinner",
+                "spinner",
+                "sniper",
+                "sniper"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "enemy4",
-                "enemy4",
-                "enemy4",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "enemy4",
-                "enemy4",
-                "enemy4"
-            ],
-            "timeBeforeNext": 150,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "big1",
-                "big1",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en"
+                "heavy",
+                "heavy",
+                "gunner",
+                "gunner"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "enemy5",
-                "enemy5",
-                "enemy5",
-                "unit1",
-                "unit1"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "enemy4",
-                "enemy4",
-                "enemy3",
-                "enemy3",
-                "enemy5",
-                "enemy5",
-                "en",
-                "en",
-                "en",
-                "en",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling"
-            ],
-            "timeBeforeNext": 180,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "big1",
-                "enemy5",
-                "enemy5",
-                "lazershooter",
-                "lazershooter",
-                "lazershooter"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "unit1",
-                "unit1",
-                "unit1",
-                "enemy5",
-                "enemy5"
+                "charger",
+                "charger",
+                "ringcaster",
+                "spinner"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
@@ -264,25 +173,37 @@
             "unitTypeList": [
                 "big1",
                 "big1",
-                "big1",
-                "unit1",
-                "enemy5",
-                "enemy5"
+                "volleyer",
+                "volleyer"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "big2",
-                "big2",
-                "enemy4",
-                "enemy4",
-                "enemy4",
-                "lazershooter",
-                "lazershooter",
-                "en",
-                "en"
+                "boss_mechanic",
+                "boss_mechanic",
+                "crossman",
+                "crossman"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "heavy",
+                "heavy",
+                "heavy",
+                "energizer",
+                "energizer"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "boss_mechanic_late",
+                "big2"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1

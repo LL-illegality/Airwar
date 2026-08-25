@@ -15,7 +15,6 @@
         2,
         3,
         3,
-        3,
         4,
         4,
         4,
@@ -27,7 +26,6 @@
         0,
         0,
         0,
-        5,
         5,
         5,
         6,
@@ -73,18 +71,22 @@
     "flags": [
         {
             "unitTypeList": [
-                "enemy5",
-                "enemy5",
-                "enemy5",
-                "enemy4",
-                "enemy5",
-                "enemy5",
-                "enemy5",
-                "enemy4",
-                "enemy5",
-                "enemy5",
-                "enemy5",
-                "enemy4"
+                "darter",
+                "darter",
+                "darter",
+                "darter",
+                "sweeper",
+                "sweeper"
+            ],
+            "timeBeforeNext": 20,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "spinner",
+                "spinner",
+                "crossman",
+                "crossman"
             ],
             "timeBeforeNext": 20,
             "finishCondition": 0
@@ -92,290 +94,183 @@
         {
             "unitTypeList": [
                 "big1",
-                "big1",
-                "enemy4",
-                "enemy4",
-                "lazershooter",
-                "enemy4",
-                "enemy4",
-                "lazershooter",
-                "enemy4",
-                "enemy4",
-                "lazershooter"
+                "boss_mechanic"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "unit1",
-                "unit1",
-                "unit1",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en"
+                "ringcaster",
+                "ringcaster",
+                "sniper",
+                "sniper",
+                "volleyer",
+                "volleyer"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "enemy4",
-                "enemy4",
-                "enemy5",
-                "enemy5",
-                "lazershooter",
-                "lazershooter",
-                "enemy4",
-                "enemy4",
-                "enemy5",
-                "enemy5",
-                "lazershooter",
-                "lazershooter",
-                "enemy4",
-                "enemy4",
-                "enemy5",
-                "enemy5",
-                "lazershooter",
-                "lazershooter",
-                "enemy4",
-                "enemy4",
-                "enemy5",
-                "enemy5",
-                "lazershooter",
-                "lazershooter"
-            ],
-            "timeBeforeNext": 150,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "big2",
-                "enemy5",
-                "enemy5",
-                "unit1",
-                "big2",
-                "enemy5",
-                "enemy5",
-                "unit1"
+                "charger",
+                "charger",
+                "rocketeer",
+                "rocketeer",
+                "gunner"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling"
+                "heavy",
+                "heavy",
+                "energizer",
+                "energizer",
+                "energizer"
             ],
-            "timeBeforeNext": 90,
-            "finishCondition": 0
+            "timeBeforeNext": 300,
+            "finishCondition": 1
         },
         {
             "unitTypeList": [
                 "big1",
                 "big1",
+                "darter",
+                "darter",
+                "darter"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "spinner",
+                "spinner",
+                "spinner",
+                "ringcaster"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "boss_mechanic_late",
+                "big2"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "crossman",
+                "crossman",
+                "crossman",
+                "sniper",
+                "sniper"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "heavy",
+                "heavy",
+                "heavy",
+                "volleyer",
+                "volleyer"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "charger",
+                "charger",
+                "charger",
+                "spinner",
+                "spinner"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
                 "big1",
-                "big1"
+                "big2",
+                "boss_mechanic"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "lazershooter",
-                "lazershooter",
-                "lazershooter"
-            ],
-            "timeBeforeNext": 180,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "unit1",
-                "unit1",
-                "big1",
-                "big1",
-                "enemy5",
-                "enemy5"
+                "ringcaster",
+                "ringcaster",
+                "crossman",
+                "crossman",
+                "sniper"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "big2",
-                "big2",
-                "en",
-                "en",
-                "en",
-                "en"
+                "heavy",
+                "heavy",
+                "heavy",
+                "heavy",
+                "energizer",
+                "energizer"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test",
-                "test"
-            ],
-            "timeBeforeNext": 240,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "enemy4",
-                "enemy4",
-                "enemy4",
-                "enemy5",
-                "enemy5",
-                "enemy5"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "unit1",
-                "unit1",
-                "unit1",
-                "big1",
-                "big1",
-                "big1"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "weakling",
-                "en",
-                "en",
-                "en",
-                "en"
-            ],
-            "timeBeforeNext": 120,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "big2",
-                "big2",
-                "big2",
-                "enemy4",
-                "enemy4",
-                "lazershooter",
-                "lazershooter"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en",
-                "en"
-            ],
-            "timeBeforeNext": 180,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "big2",
-                "big2",
-                "big2",
-                "big1",
-                "big1",
-                "big1",
-                "enemy5",
-                "enemy5",
-                "enemy5"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "big2",
-                "big2",
-                "big2",
-                "big2",
-                "enemy5",
-                "enemy5",
-                "enemy5",
-                "unit1",
-                "unit1",
-                "unit1"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "big2",
-                "big2",
-                "big2",
-                "big2",
-                "unit1",
-                "unit1",
-                "unit1"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "big2",
-                "big2",
-                "big2",
+                "boss_mechanic_late",
                 "big2",
                 "big2"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "spinner",
+                "spinner",
+                "spinner",
+                "ringcaster",
+                "ringcaster",
+                "volleyer"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "boss_mechanic",
+                "boss_mechanic",
+                "heavy",
+                "heavy"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "big2",
+                "big2",
+                "boss_mechanic_late"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "boss_mechanic_late",
+                "boss_mechanic_late"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1

@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<title>Airwar Web</title>
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<!-- ========== 连接界面 ========== -->
+<div id="lobby" class="lobby">
+  <h1 class="title">AIRWAR</h1>
+  <p class="subtitle">网页联机版</p>
+  <div class="form">
+    <label class="field">
+      <span>服务器地址</span>
+      <input id="serverInput" type="text" placeholder="ws://127.0.0.1:8000" autocomplete="off">
+    </label>
+    <label class="field">
+      <span>玩家名</span>
+      <input id="nameInput" type="text" placeholder="Player" maxlength="16" autocomplete="off">
+    </label>
+    <button id="joinBtn" class="join-btn">加入游戏</button>
+    <div id="statusText" class="status"></div>
+    <p class="hint">键盘：WASD 移动 / Space 射击 / C 准备 / E 核弹 / Z 标记 / P 暂停<br>触屏：左侧摇杆移动，右侧按钮操作</p>
+  </div>
+</div>
+
+<!-- ========== 游戏界面 ========== -->
+<div id="game" class="game hidden">
+  <canvas id="gameCanvas" width="800" height="664"></canvas>
+
+  <!-- 缩放控制（支持放大与缩小；等比缩放与桌面端一致） -->
+  <div id="zoomControls" class="zoom-controls hidden">
+    <button id="zoomOut" class="zoom-btn" aria-label="缩小">−</button>
+    <button id="zoomReset" class="zoom-btn zoom-reset">100%</button>
+    <button id="zoomIn" class="zoom-btn" aria-label="放大">+</button>
+  </div>
+
+  <!-- 触屏控件（仅触摸设备显示） -->
+  <div id="touchControls" class="touch-controls hidden">
+    <div id="joystickZone" class="joystick-zone">
+      <div id="joystickBase" class="joystick-base hidden">
+        <div id="joystickKnob" class="joystick-knob"></div>
+      </div>
+    </div>
+    <div class="btn-panel">
+      <button class="btn" data-key="99">准备</button>
+      <button class="btn" data-key="122">标记</button>
+      <button class="btn" data-key="101">核弹</button>
+      <button class="btn fire" data-key="32">射击</button>
+    </div>
+  </div>
+</div>
+
+<script src="js/audio.js"></script>
+<script src="js/music.js"></script>
+<script src="js/background.js"></script>
+<script src="js/particles.js"></script>
+<script src="js/net.js"></script>
+<script src="js/render.js"></script>
+<script src="js/input.js"></script>
+<script src="js/main.js"></script>
+</body>
+</html>

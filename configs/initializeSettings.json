@@ -1,1 +1,1 @@
-{"mode": "single", "ip": "127.0.0.1", "port": 0, "playerName": "LL", "showTutorial": true}
+{"mode": "single", "ip": "127.0.0.1", "port": 8000, "playerName": "LL", "showTutorial": false, "fullscreen": false}

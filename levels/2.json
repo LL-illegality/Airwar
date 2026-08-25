@@ -4,6 +4,7 @@
     "drops": [
         1,
         1,
+        7,
         2,
         0,
         0,
@@ -24,157 +25,152 @@
         6,
         6,
         6,
+        6,
         7,
         7
     ],
     "flags": [
         {
             "unitTypeList": [
-                "en"
-            ],
-            "timeBeforeNext": 30,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "en"
-            ],
-            "timeBeforeNext": 30,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "test"
-            ],
-            "timeBeforeNext": 30,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "test"
-            ],
-            "timeBeforeNext": 60,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "test"
-            ],
-            "timeBeforeNext": 60,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "en",
-                "en",
-                "test",
-                "test",
-                "test"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "en",
-                "test",
-                "test",
-                "enemy4",
-                "enemy4"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "test",
-                "enemy4",
                 "weakling",
-                "unit1"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
                 "weakling",
-                "lazershooter",
-                "enemy2",
-                "enemy3"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "lazershooter",
-                "test",
-                "unit1",
-                "enemy5",
-                "en"
-            ],
-            "timeBeforeNext": 300,
-            "finishCondition": 1
-        },
-        {
-            "unitTypeList": [
-                "enemy2",
-                "enemy2",
                 "weakling"
             ],
-            "timeBeforeNext": 150,
+            "timeBeforeNext": 30,
             "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "darter",
+                "darter",
+                "darter"
+            ],
+            "timeBeforeNext": 30,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "sweeper",
+                "sweeper",
+                "weakling"
+            ],
+            "timeBeforeNext": 60,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "volleyer",
+                "volleyer"
+            ],
+            "timeBeforeNext": 60,
+            "finishCondition": 0
+        },
+        {
+            "unitTypeList": [
+                "sniper",
+                "darter",
+                "darter"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
         },
         {
             "unitTypeList": [
                 "weakling",
-                "test",
-                "test"
-            ],
-            "timeBeforeNext": 150,
-            "finishCondition": 0
-        },
-        {
-            "unitTypeList": [
-                "lazershooter",
-                "enemy4",
-                "enemy3",
-                "unit1",
-                "enemy5",
-                "enemy5"
+                "weakling",
+                "darter",
+                "sweeper"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "test",
-                "enemy2",
-                "test",
-                "lazershooter",
-                "lazershooter",
-                "en",
-                "test",
-                "test",
-                "test",
-                "unit1",
-                "unit1"
+                "gunner",
+                "volleyer",
+                "weakling",
+                "weakling"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1
         },
         {
             "unitTypeList": [
-                "enemy4",
-                "enemy2",
-                "enemy4",
-                "lazershooter",
-                "lazershooter",
-                "en",
-                "enemy2",
-                "enemy3",
-                "enemy2",
-                "big1"
+                "darter",
+                "darter",
+                "sniper",
+                "weakling",
+                "weakling"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "sweeper",
+                "sweeper",
+                "sweeper",
+                "volleyer"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "rocketeer",
+                "rocketeer",
+                "darter",
+                "darter"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "gunner",
+                "gunner",
+                "sniper"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "heavy",
+                "weakling",
+                "weakling",
+                "weakling"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "volleyer",
+                "volleyer",
+                "rocketeer",
+                "sniper"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "heavy",
+                "gunner",
+                "gunner",
+                "darter",
+                "darter"
+            ],
+            "timeBeforeNext": 300,
+            "finishCondition": 1
+        },
+        {
+            "unitTypeList": [
+                "boss_mechanic",
+                "volleyer",
+                "darter",
+                "darter"
             ],
             "timeBeforeNext": 300,
             "finishCondition": 1

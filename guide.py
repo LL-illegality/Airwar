@@ -10,7 +10,8 @@ launchArg: dict = {"mode": "none",
                    "ip": "127.0.0.1",
                    "port": 0,
                    "playerName": "{default}",
-                   "showTutorial": True,}
+                   "showTutorial": True,
+                   "fullscreen": True,}
 
 launchArg_history: dict = configuration.initializeSettings
 
@@ -48,6 +49,7 @@ def singlePlayer() -> None:
     if launchArg["playerName"] == "":
             launchArg["playerName"] = "{default}"
     launchArg["showTutorial"] = launchArg_history["showTutorial"]
+    launchArg["fullscreen"] = bool(fullscreenVar.get())
     writeSettings()
     tk.destroy()
 
@@ -60,6 +62,7 @@ def multiPlayer() -> bool:
         if launchArg["playerName"] == "":
             launchArg["playerName"] = "{default}"
         launchArg["showTutorial"] = launchArg_history["showTutorial"]
+        launchArg["fullscreen"] = bool(fullscreenVar.get())
         writeSettings()
         messagebox.showinfo("Gaming Argument", f"You will join a game at {launchArg['ip']}:{launchArg['port']}")
     else:
@@ -90,6 +93,9 @@ ipEntry.grid(row=3,column=1)
 portEntry =  ttk.Entry(tk,width=5)
 portEntry.grid(row=3,column=2)
 
+fullscreenVar = Tk.BooleanVar(value=True)
+ttk.Checkbutton(tk, text="Fullscreen", variable=fullscreenVar).grid(row=4,column=0)
+
 def gameguide() -> None:
     if 'ip' in launchArg_history:
         ipEntry.set(launchArg_history['ip'])
@@ -99,4 +105,8 @@ def gameguide() -> None:
         playerNameEntry.insert(0, launchArg_history['playerName'])
     else:
         playerNameEntry.insert(0, "{default}")
+    if 'fullscreen' in launchArg_history:
+        fullscreenVar.set(bool(launchArg_history['fullscreen']))
+    else:
+        fullscreenVar.set(True)
     tk.mainloop()

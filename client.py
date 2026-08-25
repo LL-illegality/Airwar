@@ -27,6 +27,10 @@ class SinglePlayerClient:
         else:
             player.name = self.playerName
         self.game.board.addPlayer(player)
+        # 注册在线身份（自动重置后按此重生玩家）
+        self.game.online_players[self.player_id] = player.name
+        # 从屏幕最下方飞入战场（加入入场动画）
+        player.startEntering()
 
     async def disconnect(self) -> None:
         ...
